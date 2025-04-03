@@ -1,0 +1,136 @@
+{% extends 'gestaodeatas/base.html' %}
+{% load form_filters %}
+
+{% block title %}Nova Ata{% endblock %}
+
+{% block content %}
+  <h2 class="mb-4">Nova Ata</h2>
+
+  <form method="post" class="needs-validation" novalidate>
+    {% csrf_token %}
+
+    <!-- Seção da ATA principal -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-primary text-white">
+        <strong>INFORMAÇÃO DA ATA</strong>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          {% for field in form %}
+            <div class="col-md-5 mb-4">
+              <div class="form-floating">
+                {{ field|add_class:"form-control" }}
+                <label>{{ field.label }}</label>
+              </div>
+              {% if field.errors %}
+                <div class="text-danger small">{{ field.errors }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Seção dos Itens da Ata -->
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-secondary text-white">
+        <strong>ITEM DA ATA</strong>
+      </div>
+      <div class="card-body">
+        {{ formset.management_form }}
+
+        <!-- Contêiner dos itens visíveis -->
+        <div id="formset-container">
+          {% for form_item in formset %}
+            <div class="border p-3 mb-3 rounded bg-light position-relative form-item-block">
+              <button type="button" class="btn-close position-absolute top-0 end-0 m-2 remove-item" aria-label="Remover item"></button>
+              <div class="row">
+                {% for field in form_item %}
+                  {% if field.name != 'id' and field.name != 'ata' %}
+                    <div class="col-md-5 mb-4">
+                      <div class="form-floating">
+                        {{ field|add_class:"form-control" }}
+                        <label>{{ field.label }}</label>
+                      </div>
+                      {% if field.errors %}
+                        <div class="text-danger small">{{ field.errors }}</div>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    {{ field }}
+                  {% endif %}
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <!-- Formulário vazio como molde para novos itens -->
+        <div class="border p-3 mb-3 rounded bg-light d-none empty-form position-relative">
+          <button type="button" class="btn-close position-absolute top-0 end-0 m-2 remove-item" aria-label="Remover item"></button>
+          <div class="row">
+            {% for field in formset.empty_form %}
+              {% if field.name != 'id' and field.name != 'ata' %}
+                <div class="col-md-5 mb-3">
+                  <div class="form-floating">
+                    {{ field|add_class:"form-control" }}
+                    <label>{{ field.label }}</label>
+                  </div>
+                </div>
+              {% else %}
+                {{ field }}
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Botão de adicionar novo item dinamicamente -->
+        <button type="button" class="btn btn-outline-secondary mb-3" id="add-item">+ Adicionar novo item</button>
+      </div>
+    </div>
+
+    <!-- Botões principais -->
+    <button type="submit" class="btn btn-primary">Salvar Ata</button>
+    <a href="{% url 'lista_atas' %}" class="btn btn-secondary ms-2">Voltar</a>
+  </form>
+
+  <!-- Scripts -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const formContainer = document.querySelector('#formset-container');
+      const totalForms = document.querySelector('#id_itens-TOTAL_FORMS');
+      const addBtn = document.querySelector('#add-item');
+
+      function activateRemoveButtons() {
+        const removeButtons = document.querySelectorAll('.remove-item');
+        removeButtons.forEach(button => {
+          button.onclick = function () {
+            const formBlock = this.closest('.form-item-block');
+            const deleteInput = formBlock.querySelector('input[type="checkbox"][name$="-DELETE"]');
+            if (deleteInput) {
+              deleteInput.checked = true;
+              formBlock.style.display = 'none';
+            } else {
+              formBlock.remove();
+              totalForms.value = document.querySelectorAll('.form-item-block').length;
+            }
+          };
+        });
+      }
+
+      activateRemoveButtons();
+
+      addBtn.addEventListener('click', function () {
+        const currentFormCount = parseInt(totalForms.value);
+        const emptyForm = document.querySelector('.empty-form').cloneNode(true);
+        emptyForm.classList.remove('d-none', 'empty-form');
+        const regex = new RegExp('__prefix__', 'g');
+        emptyForm.innerHTML = emptyForm.innerHTML.replace(regex, currentFormCount);
+        emptyForm.classList.add('form-item-block');
+        formContainer.appendChild(emptyForm);
+        totalForms.value = currentFormCount + 1;
+        activateRemoveButtons();
+      });
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'gestaodeatas/base.html' %}
+
+{% block title %}Detalhes da Ata{% endblock %}
+
+{% block content %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <strong>Detalhes da Ata {{ ata.numero_ata }}</strong>
+    </div>
+    <div class="card-body">
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <p><strong>Hospital:</strong> {{ ata.hospital }}</p>
+          <p><strong>UASG:</strong> {{ ata.uasg }}</p>
+        </div>
+        <div class="col-md-6">
+          <p><strong>Período de Vigência:</strong> {{ ata.vigencia_inicio|date:"d/m/Y" }} até {{ ata.vigencia_fim|date:"d/m/Y" }}</p>
+          <p><strong>Número SEI:</strong> {{ ata.numero_sei }}</p>
+        </div>
+      </div>
+
+      <h5 class="mt-4">Itens da Ata</h5>
+      <ul class="list-group">
+        {% for item in ata.itens.all %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ item.nome_item }}</strong>  
+              <span class="text-muted small">({{ item.marca }} / {{ item.modelo }})</span><br>
+              {{ item.empresa }} — Garantia: {{ item.garantia }} meses
+            </div>
+            <span class="badge bg-success rounded-pill">R$ {{ item.valor }}</span>
+          </li>
+        {% empty %}
+          <li class="list-group-item">Nenhum item cadastrado.</li>
+        {% endfor %}
+      </ul>
+
+      <a href="{% url 'lista_atas' %}" class="btn btn-secondary mt-4">← Voltar para lista</a>
+    </div>
+  </div>
+{% endblock %}
