@@ -1,37 +1,13 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from .models import AtaRegistroPreco, ItemDaAta
-from .forms import AtaRegistroPrecoForm, ItemDaAtaForm, ItemFormSet
-from django.db.models import Q
-from datetime import date
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import AtaRegistroPreco
+from .forms import AtaRegistroPrecoForm, ItemFormSet
 
-def lista_atas(request):
-    query = request.GET.get('q', '')
-    apenas_vigentes = request.GET.get('vigentes') == 'on'
-    hoje = date.today()
-
+# Página inicial: lista todas as atas
+def pagina_inicial(request):
     atas = AtaRegistroPreco.objects.all()
+    return render(request, 'gestaodeatas/lista_atas.html', {'atas': atas})
 
-    if query:
-        atas = atas.filter(
-            Q(numero_ata__icontains=query) |
-            Q(hospital__icontains=query) |
-            Q(uasg__icontains=query) |
-            Q(numero_sei__icontains=query)
-        )
-
-    if apenas_vigentes:
-        atas = atas.filter(vigencia_fim__gte=hoje)
-
-    return render(request, 'gestaodeatas/lista_atas.html', {
-        'atas': atas,
-        'query': query,
-        'apenas_vigentes': apenas_vigentes
-    })
-
-def detalhes_ata(request, ata_id):
-    ata = get_object_or_404(AtaRegistroPreco, id=ata_id)
-    return render(request, 'gestaodeatas/detalhes_ata.html', {'ata': ata})
-
+# Criação de nova ata
 def nova_ata(request):
     if request.method == 'POST':
         form = AtaRegistroPrecoForm(request.POST)
@@ -42,16 +18,17 @@ def nova_ata(request):
             for item in itens:
                 item.ata = ata
                 item.save()
-            return redirect('detalhes_ata', ata_id=ata.id)
+            return redirect('lista_atas')
     else:
         form = AtaRegistroPrecoForm()
-        formset = ItemFormSet()
-
+        formset = ItemFormSet(queryset=ItemFormSet.model.objects.none())
+    
     return render(request, 'gestaodeatas/nova_ata.html', {
         'form': form,
-        'formset': formset
+        'formset': formset,
     })
 
-
-
-
+# Detalhes de uma ata específica
+def detalhes_ata(request, id):
+    ata = get_object_or_404(AtaRegistroPreco, id=id)
+    return render(request, 'gestaodeatas/detalhes_ata.html', {'ata': ata})

@@ -1,9 +1,8 @@
-# gestaodeatas/urls.py
 from django.urls import path
-from . import views
+from .views import pagina_inicial, nova_ata, detalhes_ata
 
 urlpatterns = [
-    path('', views.lista_atas, name='lista_atas'),
-    path('ata/<int:ata_id>/', views.detalhes_ata, name='detalhes_ata'),
-    path('nova/', views.nova_ata, name='nova_ata'),
+    path('', pagina_inicial, name='pagina_inicial'),
+    path('atas/nova/', nova_ata, name='nova_ata'),
+    path('atas/<int:id>/', detalhes_ata, name='detalhes_ata'),
 ]

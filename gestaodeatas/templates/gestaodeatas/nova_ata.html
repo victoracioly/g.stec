@@ -1,136 +1,161 @@
 {% extends 'gestaodeatas/base.html' %}
-{% load form_filters %}
+{% load static %}
+{% load form_extras %}
 
 {% block title %}Nova Ata{% endblock %}
 
 {% block content %}
-  <h2 class="mb-4">Nova Ata</h2>
+<form method="POST" class="mb-5">
+  {% csrf_token %}
 
-  <form method="post" class="needs-validation" novalidate>
-    {% csrf_token %}
-
-    <!-- Seção da ATA principal -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-primary text-white">
-        <strong>INFORMAÇÃO DA ATA</strong>
+  <!-- DADOS DA ATA -->
+  <div class="card p-4 mb-4 shadow-sm">
+    <h5 class="mb-3">Dados da Ata</h5>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Número da ata</label>
+        {{ form.numero_ata|add_class:"form-control" }}
       </div>
-      <div class="card-body">
-        <div class="row">
-          {% for field in form %}
-            <div class="col-md-5 mb-4">
-              <div class="form-floating">
-                {{ field|add_class:"form-control" }}
-                <label>{{ field.label }}</label>
-              </div>
-              {% if field.errors %}
-                <div class="text-danger small">{{ field.errors }}</div>
-              {% endif %}
-            </div>
-          {% endfor %}
-        </div>
+      <div class="col-md-6">
+        <label class="form-label">Edital</label>
+        {{ form.edital|add_class:"form-control" }}
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">UASG</label>
+        {{ form.uasg|add_class:"form-control" }}
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Hospital</label>
+        {{ form.hospital|add_class:"form-control" }}
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Número SEI</label>
+        {{ form.numero_sei|add_class:"form-control" }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Vigência inicial</label>
+        {{ form.vigencia_inicio|add_class:"form-control" }}
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Vigência final</label>
+        {{ form.vigencia_fim|add_class:"form-control" }}
       </div>
     </div>
+  </div>
 
-    <!-- Seção dos Itens da Ata -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-secondary text-white">
-        <strong>ITEM DA ATA</strong>
-      </div>
-      <div class="card-body">
-        {{ formset.management_form }}
-
-        <!-- Contêiner dos itens visíveis -->
-        <div id="formset-container">
-          {% for form_item in formset %}
-            <div class="border p-3 mb-3 rounded bg-light position-relative form-item-block">
-              <button type="button" class="btn-close position-absolute top-0 end-0 m-2 remove-item" aria-label="Remover item"></button>
-              <div class="row">
-                {% for field in form_item %}
-                  {% if field.name != 'id' and field.name != 'ata' %}
-                    <div class="col-md-5 mb-4">
-                      <div class="form-floating">
-                        {{ field|add_class:"form-control" }}
-                        <label>{{ field.label }}</label>
-                      </div>
-                      {% if field.errors %}
-                        <div class="text-danger small">{{ field.errors }}</div>
-                      {% endif %}
-                    </div>
-                  {% else %}
-                    {{ field }}
-                  {% endif %}
-                {% endfor %}
-              </div>
+  <!-- ITENS DA ATA -->
+  <div class="card p-4 shadow-sm">
+    <h5 class="mb-3">Itens da Ata</h5>
+    {{ formset.management_form }}
+    <div id="formset-itens">
+      {% for form in formset %}
+        <div class="formset-item border rounded p-3 mb-3 position-relative bg-light-subtle">
+          <button type="button" class="btn-close position-absolute top-0 end-0 remove-form" aria-label="Remover"></button>
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label">Nome do item</label>
+              {{ form.nome_item|add_class:"form-control" }}
             </div>
-          {% endfor %}
-        </div>
-
-        <!-- Formulário vazio como molde para novos itens -->
-        <div class="border p-3 mb-3 rounded bg-light d-none empty-form position-relative">
-          <button type="button" class="btn-close position-absolute top-0 end-0 m-2 remove-item" aria-label="Remover item"></button>
-          <div class="row">
-            {% for field in formset.empty_form %}
-              {% if field.name != 'id' and field.name != 'ata' %}
-                <div class="col-md-5 mb-3">
-                  <div class="form-floating">
-                    {{ field|add_class:"form-control" }}
-                    <label>{{ field.label }}</label>
-                  </div>
-                </div>
-              {% else %}
-                {{ field }}
-              {% endif %}
-            {% endfor %}
+            <div class="col-md-6">
+              <label class="form-label">Marca</label>
+              {{ form.marca|add_class:"form-control" }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Modelo</label>
+              {{ form.modelo|add_class:"form-control" }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Garantia (meses)</label>
+              {{ form.garantia_meses|add_class:"form-control" }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Valor</label>
+              {{ form.valor|add_class:"form-control" }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Empresa</label>
+              {{ form.empresa|add_class:"form-control" }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Item no SRP</label>
+              {{ form.item_no_srp|add_class:"form-control" }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo do item</label>
+              {{ form.tipo_item|add_class:"form-select" }}
+            </div>
           </div>
+          {{ form.descricao_corrigida }}
+          {{ form.corrigido_por }}
+          {{ form.catmat_sugerido }}
+          {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
         </div>
-
-        <!-- Botão de adicionar novo item dinamicamente -->
-        <button type="button" class="btn btn-outline-secondary mb-3" id="add-item">+ Adicionar novo item</button>
-      </div>
+      {% endfor %}
     </div>
 
-    <!-- Botões principais -->
-    <button type="submit" class="btn btn-primary">Salvar Ata</button>
-    <a href="{% url 'lista_atas' %}" class="btn btn-secondary ms-2">Voltar</a>
-  </form>
+    <div class="mt-3 text-center">
+      <button type="button" id="add-form" class="btn btn-outline-primary">+ Adicionar novo item</button>
+    </div>
+  </div>
 
-  <!-- Scripts -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const formContainer = document.querySelector('#formset-container');
-      const totalForms = document.querySelector('#id_itens-TOTAL_FORMS');
-      const addBtn = document.querySelector('#add-item');
+  <!-- AÇÕES -->
+  <div class="d-flex justify-content-end mt-4 gap-2">
+    <a href="{% url 'lista_atas' %}" class="btn btn-secondary">Cancelar</a>
+    <button type="submit" class="btn btn-success">Salvar Ata</button>
+  </div>
+</form>
 
-      function activateRemoveButtons() {
-        const removeButtons = document.querySelectorAll('.remove-item');
-        removeButtons.forEach(button => {
-          button.onclick = function () {
-            const formBlock = this.closest('.form-item-block');
-            const deleteInput = formBlock.querySelector('input[type="checkbox"][name$="-DELETE"]');
-            if (deleteInput) {
-              deleteInput.checked = true;
-              formBlock.style.display = 'none';
-            } else {
-              formBlock.remove();
-              totalForms.value = document.querySelectorAll('.form-item-block').length;
-            }
-          };
-        });
-      }
+<!-- TEMPLATE DO FORMULÁRIO VAZIO -->
+<template id="empty-form-template">
+  <div class="formset-item border rounded p-3 mb-3 position-relative bg-light-subtle">
+    <button type="button" class="btn-close position-absolute top-0 end-0 remove-form" aria-label="Remover"></button>
+    <div class="row g-2">
+      <div class="col-md-6"><label class="form-label">Nome do item</label><input type="text" name="itens-__prefix__-nome_item" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label">Marca</label><input type="text" name="itens-__prefix__-marca" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label">Modelo</label><input type="text" name="itens-__prefix__-modelo" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label">Garantia (meses)</label><input type="number" name="itens-__prefix__-garantia_meses" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label">Valor</label><input type="text" name="itens-__prefix__-valor" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label">Empresa</label><input type="text" name="itens-__prefix__-empresa" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label">Item no SRP</label><input type="text" name="itens-__prefix__-item_no_srp" class="form-control" /></div>
+      <div class="col-md-6"><label class="form-label">Tipo do item</label>
+        <select name="itens-__prefix__-tipo_item" class="form-select">
+          <option value="bem">Bem</option>
+          <option value="servico">Serviço</option>
+        </select>
+      </div>
+    </div>
+    <input type="hidden" name="itens-__prefix__-descricao_corrigida">
+    <input type="hidden" name="itens-__prefix__-corrigido_por">
+    <input type="hidden" name="itens-__prefix__-catmat_sugerido">
+    <input type="checkbox" name="itens-__prefix__-DELETE" class="d-none">
+  </div>
+</template>
 
-      activateRemoveButtons();
+<!-- SCRIPT -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('formset-itens');
+    const totalForms = document.querySelector('#id_itens-TOTAL_FORMS');
+    const addButton = document.getElementById('add-form');
+    const template = document.getElementById('empty-form-template').innerHTML;
 
-      addBtn.addEventListener('click', function () {
-        const currentFormCount = parseInt(totalForms.value);
-        const emptyForm = document.querySelector('.empty-form').cloneNode(true);
-        emptyForm.classList.remove('d-none', 'empty-form');
-        const regex = new RegExp('__prefix__', 'g');
-        emptyForm.innerHTML = emptyForm.innerHTML.replace(regex, currentFormCount);
-        emptyForm.classList.add('form-item-block');
-        formContainer.appendChild(emptyForm);
-        totalForms.value = currentFormCount + 1;
-        activateRemoveButtons();
-      });
+    addButton.addEventListener('click', function () {
+      const formCount = parseInt(totalForms.value);
+      const newForm = template.replace(/__prefix__/g, formCount);
+      container.insertAdjacentHTML('beforeend', newForm);
+      totalForms.value = formCount + 1;
     });
-  </script>
+
+    container.addEventListener('click', function (e) {
+      if (e.target.classList.contains('remove-form')) {
+        const wrapper = e.target.closest('.formset-item');
+        const deleteInput = wrapper.querySelector('input[name$="-DELETE"]');
+        if (deleteInput) {
+          deleteInput.checked = true;
+          wrapper.style.display = 'none';
+        }
+      }
+    });
+  });
+</script>
 {% endblock %}

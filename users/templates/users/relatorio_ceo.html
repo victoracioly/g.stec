@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório de Atas Homologadas</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h2>Relatório de Atas Homologadas</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Número da Ata</th>
+                <th>UASG</th>
+                <th>Hospital</th>
+                <th>Edital</th>
+                <th>Vigência Início</th>
+                <th>Vigência Fim</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ata in atas %}
+                <tr>
+                    <td>{{ ata.numero_ata }}</td>
+                    <td>{{ ata.uasg }}</td>
+                    <td>{{ ata.hospital }}</td>
+                    <td>{{ ata.edital }}</td>
+                    <td>{{ ata.vigencia_inicio|date:"d/m/Y" }}</td>
+                    <td>{{ ata.vigencia_fim|date:"d/m/Y" }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

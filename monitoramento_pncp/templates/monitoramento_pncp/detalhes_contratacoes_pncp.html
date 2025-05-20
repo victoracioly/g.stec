@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalhes da Contratação - PNCP</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="mb-4">Detalhes da Contratação - PNCP</h2>
+
+        <!-- Informações da Contratação -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Informações da Contratação</strong>
+            </div>
+            <div class="card-body">
+                <p><strong>Número de Controle PNCP:</strong> {{ contratacao.numeroControlePNCP }}</p>
+                <p><strong>Número da Compra:</strong> {{ contratacao.numeroCompra }}</p>
+                <p><strong>Ano da Compra:</strong> {{ contratacao.anoCompra }}</p>
+                <p><strong>Processo:</strong> {{ contratacao.processo }}</p>
+                <p><strong>Objeto da Compra:</strong> {{ contratacao.objetoCompra }}</p>
+                <p><strong>Informações Complementares:</strong> {{ contratacao.informacaoComplementar }}</p>
+            </div>
+        </div>
+
+        <!-- Modalidade e Disputa -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Modalidade e Disputa</strong>
+            </div>
+            <div class="card-body">
+                <p><strong>Modalidade:</strong> {{ contratacao.modalidadeNome }}</p>
+                <p><strong>Modo de Disputa:</strong> {{ contratacao.modoDisputaNome }}</p>
+                <p><strong>Situação da Compra:</strong> {{ contratacao.situacaoCompraNome }}</p>
+                <p><strong>Amparo Legal:</strong> {{ contratacao.amparoLegal.nome }} - {{ contratacao.amparoLegal.descricao }}</p>
+            </div>
+        </div>
+
+        <!-- Valores da Contratação -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Valores da Contratação</strong>
+            </div>
+            <div class="card-body">
+                <p><strong>Valor Total Estimado:</strong> R$ {{ contratacao.valorTotalEstimado|floatformat:2 }}</p>
+                <p><strong>Valor Total Homologado:</strong> R$ {{ contratacao.valorTotalHomologado|floatformat:2 }}</p>
+            </div>
+        </div>
+
+        <!-- Datas Importantes -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Datas Importantes</strong>
+            </div>
+            <div class="card-body">
+                <p><strong>Data de Abertura da Proposta:</strong> {{ contratacao.dataAberturaProposta }}</p>
+                <p><strong>Data de Encerramento da Proposta:</strong> {{ contratacao.dataEncerramentoProposta }}</p>
+                <p><strong>Data de Publicação PNCP:</strong> {{ contratacao.dataPublicacaoPncp }}</p>
+                <p><strong>Data de Inclusão:</strong> {{ contratacao.dataInclusao }}</p>
+                <p><strong>Data de Atualização:</strong> {{ contratacao.dataAtualizacao }}</p>
+            </div>
+        </div>
+
+        <!-- Informações do Órgão Contratante -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Órgão Contratante</strong>
+            </div>
+            <div class="card-body">
+                <p><strong>Razão Social:</strong> {{ contratacao.orgaoEntidade.razaosocial }}</p>
+                <p><strong>CNPJ:</strong> {{ contratacao.orgaoEntidade.cnpj }}</p>
+
+                <!-- Ajuste para exibir o nome completo do Poder -->
+                <p><strong>Poder:</strong> 
+                    {% if contratacao.orgaoEntidade.poderId == "E" %}
+                        Executivo
+                    {% elif contratacao.orgaoEntidade.poderId == "L" %}
+                        Legislativo
+                    {% elif contratacao.orgaoEntidade.poderId == "J" %}
+                        Judiciário
+                    {% else %}
+                        Não informado
+                    {% endif %}
+                </p>
+
+                <!-- Ajuste para exibir o nome completo da Esfera -->
+                <p><strong>Esfera:</strong> 
+                    {% if contratacao.orgaoEntidade.esferaId == "F" %}
+                        Federal
+                    {% elif contratacao.orgaoEntidade.esferaId == "E" %}
+                        Estadual
+                    {% elif contratacao.orgaoEntidade.esferaId == "M" %}
+                        Municipal
+                    {% elif contratacao.orgaoEntidade.esferaId == "D" %}
+                        Distrital
+                    {% else %}
+                        Não informado
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <!-- Unidade Administrativa -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Unidade Administrativa</strong>
+            </div>
+            <div class="card-body">
+                <p><strong>Nome da Unidade:</strong> {{ contratacao.unidadeOrgao.nomeUnidade }}</p>
+                <p><strong>Município:</strong> {{ contratacao.unidadeOrgao.municipioNome }}</p>
+                <p><strong>UF:</strong> {{ contratacao.unidadeOrgao.ufSigla }}</p>
+                <p><strong>IBGE Código:</strong> {{ contratacao.unidadeOrgao.codigoIbge }}</p>
+            </div>
+        </div>
+
+        <!-- Links e Informações Adicionais -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Links e Informações Adicionais</strong>
+            </div>
+            <div class="card-body">
+                <p><strong>Link para Sistema de Origem:</strong> 
+                    {% if contratacao.linkSistemaOrigem %}
+                        <a href="{{ contratacao.linkSistemaOrigem }}" target="_blank">{{ contratacao.linkSistemaOrigem }}</a>
+                    {% else %}
+                        Indisponível
+                    {% endif %}
+                </p>
+                <p><strong>Justificativa Presencial:</strong> {{ contratacao.justificativaPresencial }}</p>
+                <p><strong>Nome do Usuário que Enviou:</strong> {{ contratacao.usuarioNome }}</p>
+            </div>
+        </div>
+
+        <a href="javascript:history.back()" class="btn btn-secondary">Voltar</a>
+    </div>
+</body>
+</html>

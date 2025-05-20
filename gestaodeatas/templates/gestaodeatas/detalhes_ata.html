@@ -1,41 +1,69 @@
-{% extends 'gestaodeatas/base.html' %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Detalhes da Ata</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2 class="mb-4">Detalhes da Ata</h2>
 
-{% block title %}Detalhes da Ata{% endblock %}
-
-{% block content %}
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-      <strong>Detalhes da Ata {{ ata.numero_ata }}</strong>
-    </div>
-    <div class="card-body">
-      <div class="row mb-3">
-        <div class="col-md-6">
-          <p><strong>Hospital:</strong> {{ ata.hospital }}</p>
-          <p><strong>UASG:</strong> {{ ata.uasg }}</p>
-        </div>
-        <div class="col-md-6">
-          <p><strong>Período de Vigência:</strong> {{ ata.vigencia_inicio|date:"d/m/Y" }} até {{ ata.vigencia_fim|date:"d/m/Y" }}</p>
-          <p><strong>Número SEI:</strong> {{ ata.numero_sei }}</p>
-        </div>
-      </div>
-
-      <h5 class="mt-4">Itens da Ata</h5>
-      <ul class="list-group">
-        {% for item in ata.itens.all %}
-          <li class="list-group-item d-flex justify-content-between align-items-center">
-            <div>
-              <strong>{{ item.nome_item }}</strong>  
-              <span class="text-muted small">({{ item.marca }} / {{ item.modelo }})</span><br>
-              {{ item.empresa }} — Garantia: {{ item.garantia }} meses
+        <!-- Informações da Ata -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Informações da Ata</strong>
             </div>
-            <span class="badge bg-success rounded-pill">R$ {{ item.valor }}</span>
-          </li>
-        {% empty %}
-          <li class="list-group-item">Nenhum item cadastrado.</li>
-        {% endfor %}
-      </ul>
+            <div class="card-body">
+                <p><strong>Número da Ata:</strong> {{ ata.numero_ata }}</p>
+                <p><strong>Edital:</strong> {{ ata.edital }}</p>
+                <p><strong>Hospital:</strong> {{ ata.hospital }}</p>
+                <p><strong>UASG:</strong> {{ ata.uasg }}</p>
+                <p><strong>Número SEI:</strong> {{ ata.numero_sei }}</p>
+                <p><strong>Vigência:</strong> {{ ata.vigencia_inicio|date:"d/m/Y" }} até {{ ata.vigencia_fim|date:"d/m/Y" }}</p>
+            </div>
+        </div>
 
-      <a href="{% url 'lista_atas' %}" class="btn btn-secondary mt-4">← Voltar para lista</a>
+        <!-- Itens da Ata -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <strong>Itens da Ata</strong>
+            </div>
+            <div class="card-body">
+                {% if ata.itens.all %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Item</th>
+                                <th>Marca / Modelo</th>
+                                <th>Empresa</th>
+                                <th>Garantia (meses)</th>
+                                <th>Valor</th>
+                                <th>Tipo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in ata.itens.all %}
+                            <tr>
+                                <td>{{ item.nome_item }}</td>
+                                <td>{{ item.marca }} / {{ item.modelo }}</td>
+                                <td>{{ item.empresa }}</td>
+                                <td>{{ item.garantia_meses }}</td>
+                                <td>R$ {{ item.valor|floatformat:2 }}</td>
+                                <td>{{ item.get_tipo_item_display }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <div class="alert alert-warning">Nenhum item registrado nesta ata.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <a href="{% url 'lista_atas' %}" class="btn btn-secondary">← Voltar para lista</a>
     </div>
-  </div>
-{% endblock %}
+</body>
+</html>

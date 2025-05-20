@@ -1,11 +1,9 @@
+# forms.py
 from django import forms
-from django.forms import inlineformset_factory
+from django.forms import modelformset_factory
 from .models import AtaRegistroPreco, ItemDaAta
 
 class AtaRegistroPrecoForm(forms.ModelForm):
-    vigencia_inicio = forms.DateField(input_formats=['%d/%m/%Y'])
-    vigencia_fim = forms.DateField(input_formats=['%d/%m/%Y'])
-
     class Meta:
         model = AtaRegistroPreco
         fields = '__all__'
@@ -13,11 +11,18 @@ class AtaRegistroPrecoForm(forms.ModelForm):
 class ItemDaAtaForm(forms.ModelForm):
     class Meta:
         model = ItemDaAta
-        exclude = ['ata', 'id']  # oculta os campos no HTML
+        fields = [
+            'nome_item', 'marca', 'modelo', 'garantia_meses',
+            'valor', 'empresa', 'item_no_srp', 'tipo_item',
+            'descricao_corrigida', 'corrigido_por', 'catmat_sugerido',
+        ]
+        widgets = {
+            'descricao_corrigida': forms.HiddenInput(),
+            'corrigido_por': forms.HiddenInput(),
+            'catmat_sugerido': forms.HiddenInput(),
+        }
 
-# Criação do formset para múltiplos itens da ata
-ItemFormSet = inlineformset_factory(
-    AtaRegistroPreco,
+ItemFormSet = modelformset_factory(
     ItemDaAta,
     form=ItemDaAtaForm,
     extra=1,

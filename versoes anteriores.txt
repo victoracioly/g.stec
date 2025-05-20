@@ -1,0 +1,363 @@
+<!---->
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitoramento PNCP</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Monitoramento de Atas - PNCP (Dados em Tempo Real)</h1>
+
+        <!-- 🔎 Filtro de Busca -->
+        <form method="GET" action="{% url 'monitoramento_pncp' %}" class="row g-3 mb-4">
+            <div class="col-md-3">
+                <label for="data_inicial" class="form-label">Data Inicial</label>
+                <input type="date" class="form-control" name="data_inicial" value="{{ request.GET.data_inicial }}">
+            </div>
+            <div class="col-md-3">
+                <label for="data_final" class="form-label">Data Final</label>
+                <input type="date" class="form-control" name="data_final" value="{{ request.GET.data_final }}">
+            </div>
+            <div class="col-md-3">
+                <label for="cnpj" class="form-label">CNPJ</label>
+                <input type="text" class="form-control" name="cnpj" value="{{ request.GET.cnpj }}">
+            </div>
+            <div class="col-md-3">
+                <label for="codigo_ua" class="form-label">Código UA</label>
+                <input type="text" class="form-control" name="codigo_ua" value="{{ request.GET.codigo_ua }}">
+            </div>
+            <div class="col-md-12 text-end">
+                <button type="submit" class="btn btn-primary mt-3">🔎 Buscar Atas</button>
+            </div>
+        </form>
+
+        <!-- ✅ Tabela de Resultados -->
+        {% if atas %}
+            <table class="table table-striped mt-4">
+                <thead>
+                    <tr>
+                        <th>Número da Ata</th>
+                        <th>Hospital</th>
+                        <th>Vigência</th>
+                        <th>Objeto</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ata in atas %}
+                        <tr>
+                            <td>{{ ata.numeroAtaRegistroPreco }}</td>
+                            <td>{{ ata.nomeOrgao }}</td>
+                            <td>
+                                {{ ata.vigenciaInicio|date:"d/m/Y" }} a {{ ata.vigenciaFim|date:"d/m/Y" }}
+                            </td>
+                            <td>{{ ata.objetoContratacao }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="alert alert-info">Nenhuma ata encontrada para os parâmetros informados.</div>
+        {% endif %}
+    </div>
+
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 
+
+
+
+O Views.py: 
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.forms import modelformset_factory
+from .models import AtaRegistroPreco, ItemDaAta
+from .forms import AtaRegistroPrecoForm, ItemDaAtaForm
+from django.db.models import Q
+from datetime import date, datetime
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import AtaRegistroPrecoSerializer
+from .integracao_pncp import buscar_atas_pncp, salvar_ata_no_banco
+
+# ==============================
+# 🔹 1️⃣ View para Lista de Atas
+# ==============================
+def lista_atas(request):
+    query = request.GET.get('q', '')
+    apenas_vigentes = request.GET.get('vigentes') == 'on'
+    hoje = date.today()
+
+    atas = AtaRegistroPreco.objects.all()
+
+    if query:
+        atas = atas.filter(
+            Q(numero_ata__icontains=query) |
+            Q(hospital__icontains=query) |
+            Q(uasg__icontains=query) |
+            Q(numero_sei__icontains=query)
+        )
+
+    if apenas_vigentes:
+        atas = atas.filter(vigencia_fim__gte=hoje)
+
+    return render(request, 'gestaodeatas/lista_atas.html', {
+        'atas': atas,
+        'query': query,
+        'apenas_vigentes': apenas_vigentes
+    })
+
+
+# ==============================
+# 🔹 2️⃣ View para Detalhes de uma Ata
+# ==============================
+def detalhes_ata(request, ata_id):
+    ata = get_object_or_404(AtaRegistroPreco, id=ata_id)
+    return render(request, 'gestaodeatas/detalhes_ata.html', {'ata': ata})
+
+
+# ==============================
+# 🔹 3️⃣ View para Nova Ata
+# ==============================
+def nova_ata(request):
+    prefix = 'itens'
+    ItemFormSet = modelformset_factory(ItemDaAta, form=ItemDaAtaForm, extra=1, can_delete=True)
+
+    if request.method == 'POST':
+        form = AtaRegistroPrecoForm(request.POST)
+        formset = ItemFormSet(request.POST, prefix=prefix, queryset=ItemDaAta.objects.none())
+
+        if form.is_valid() and formset.is_valid():
+            ata = form.save()
+            itens = formset.save(commit=False)
+            for item in itens:
+                item.ata = ata
+                item.save()
+            return redirect('detalhes_ata', ata_id=ata.id)
+    else:
+        form = AtaRegistroPrecoForm()
+        formset = ItemFormSet(prefix=prefix, queryset=ItemDaAta.objects.none())
+
+    return render(request, 'gestaodeatas/nova_ata.html', {
+        'form': form,
+        'formset': formset,
+        'prefix': prefix,
+    })
+
+
+# ==============================
+# 🔹 4️⃣ View para Monitoramento PNCP
+# ==============================
+def monitoramento_pncp(request):
+    print("[DEBUG] ➡️ Entrou na view monitoramento_pncp")
+
+    # ✅ Parâmetros opcionais de busca
+    data_inicial = request.GET.get('data_inicial')
+    data_final = request.GET.get('data_final')
+    cnpj = request.GET.get('cnpj', None)
+    codigo_ua = request.GET.get('codigo_ua', None)
+
+    # ✅ Valores padrão se estiverem em branco
+    if not data_inicial:
+        data_inicial = '2023-01-01'
+    if not data_final:
+        data_final = '2023-12-31'
+
+    # ✅ Ajustando o formato para o esperado pela API (yyyyMMdd)
+    try:
+        data_inicial = datetime.strptime(data_inicial, '%Y-%m-%d').strftime('%Y%m%d')
+        data_final = datetime.strptime(data_final, '%Y-%m-%d').strftime('%Y%m%d')
+    except ValueError as e:
+        print(f"[ERRO] ➡️ Formato de data inválido: {e}")
+        data_inicial = '20230101'
+        data_final = '20231231'
+
+    print(f"[DEBUG] ➡️ Parâmetros da busca: {data_inicial} a {data_final} | CNPJ: {cnpj} | UA: {codigo_ua}")
+
+    # ✅ Busca as atas no PNCP (em tempo real)
+    try:
+        atas_pncp = buscar_atas_pncp(data_inicial, data_final, cnpj, codigo_ua)
+        print(f"[DEBUG] ➡️ Quantidade de atas encontradas: {len(atas_pncp)}")
+        
+        # 🔄 Salvando no banco todas as atas encontradas
+        for ata in atas_pncp:
+            salvar_ata_no_banco(ata)
+
+    except Exception as e:
+        print(f"[ERRO] ➡️ Falha ao buscar atas: {e}")
+        atas_pncp = []
+
+    # ✅ Adiciona ao contexto para renderizar na tela
+    context = {
+        'atas': atas_pncp
+    }
+    
+    print("[DEBUG] ➡️ Finalizou a view e vai renderizar o HTML.")
+    return render(request, 'gestaodeatas/monitoramento_pncp.html', context)
+
+
+# ==============================
+# 🔹 5️⃣ View para Salvar Ata via API
+# ==============================
+class AtaRegistroPrecoAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = AtaRegistroPrecoSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+integracao_pncp:
+
+import sys
+import os
+import django
+import requests
+from datetime import datetime
+from decimal import Decimal
+
+# Caminho dinâmico para o diretório onde está o manage.py
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(BASE_DIR)
+
+# Define o módulo de configurações do Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aprendendopython.settings')
+django.setup()
+
+# Agora podemos importar o Model
+from gestaodeatas.models import AtaRegistroPreco
+
+# =============================================
+# FUNÇÕES DE SEGURANÇA (Datas e Valores)
+# =============================================
+def safe_date(date_str):
+    try:
+        return datetime.strptime(date_str, '%Y-%m-%d')
+    except (ValueError, TypeError):
+        print(f"[ERRO] Data inválida recebida: {date_str}")
+        return None
+
+def safe_decimal(value):
+    try:
+        return Decimal(value)
+    except (ValueError, TypeError):
+        print(f"[ERRO] Valor inválido para Decimal: {value}")
+        return Decimal('0.00')
+
+
+# =============================================
+# FUNÇÃO PARA SALVAR NO BANCO
+# =============================================
+def salvar_ata_no_banco(ata):
+    try:
+        if isinstance(ata, dict):
+            obj, created = AtaRegistroPreco.objects.update_or_create(
+                numero_ata=ata.get('numeroAtaRegistroPreco'),
+                defaults={
+                    'edital': ata.get('identificador', 'Desconhecido'),
+                    'uasg': ata.get('codigoUnidadeOrgao', 'Não informado'),
+                    'hospital': ata.get('nomeUnidadeOrgao', 'Não informado'),
+                    'numero_sei': ata.get('numeroControlePNCPAta', 'N/A'),
+                    'vigencia_inicio': safe_date(ata.get('vigenciaInicio')),
+                    'vigencia_fim': safe_date(ata.get('vigenciaFim')),
+                    'data_assinatura': safe_date(ata.get('dataAssinatura')),
+                    'data_publicacao_pncp': safe_date(ata.get('dataPublicacaoPncp')),
+                    'data_inclusao': safe_date(ata.get('dataInclusao')),
+                    'data_atualizacao': safe_date(ata.get('dataAtualizacao')),
+                    'objeto_contratacao': ata.get('objetoContratacao', 'Não informado'),
+                    'nome_orgao': ata.get('nomeOrgao', 'Não informado'),
+                    'valor_total': safe_decimal(ata.get('valorTotal', '0.00'))
+                }
+            )
+            if created:
+                print(f"[INSERIDO] Ata {ata.get('numeroAtaRegistroPreco')} foi inserida no banco.")
+            else:
+                print(f"[ATUALIZADO] Ata {ata.get('numeroAtaRegistroPreco')} foi atualizada no banco.")
+    except Exception as e:
+        print(f"[ERRO] Falha ao salvar a ata ({ata.get('numeroAtaRegistroPreco')}): {e}")
+
+
+# =============================================
+# FUNÇÃO DE BUSCA NA API DO PNCP
+# =============================================
+def buscar_atas_pncp(data_inicial, data_final, cnpj=None, codigo_ua=None):
+    """
+    Função para buscar atas no PNCP com paginação completa
+    """
+    url = "https://pncp.gov.br/api/consulta/v1/atas"
+    pagina = 1
+    total_atas = []
+
+    print(f"[BUSCA] Iniciando busca de atas para o período: {data_inicial} - {data_final}")
+
+    while True:
+        params = {
+            "dataInicial": data_inicial,
+            "dataFinal": data_final,
+            "pagina": str(pagina)
+        }
+        
+        if cnpj:
+            params["cnpj"] = cnpj
+        
+        if codigo_ua:
+            params["codigoUnidadeAdministrativa"] = codigo_ua
+        
+        print(f"[DEBUG] ➡️ Requisição para: {url} com parâmetros: {params}")
+        
+        try:
+            response = requests.get(url, params=params, headers={
+                "accept": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            }, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                atas = data.get('Atas', [])
+
+                if not atas:
+                    print(f"[INFO] Não há mais atas na página {pagina}. Finalizando busca.")
+                    break
+
+                print(f"[LOG] Página {pagina} - {len(atas)} atas encontradas.")
+                total_atas.extend(atas)
+                pagina += 1
+            else:
+                print(f"[ERRO] Status Code {response.status_code}: {response.text}")
+                break
+        
+        except Exception as e:
+            print(f"[ERRO] Falha na conexão com a API: {e}")
+            break
+    
+    print(f"[BUSCA] Total de atas encontradas: {len(total_atas)}")
+    return total_atas
+
+# =============================================
+# EXECUÇÃO DO SCRIPT
+# =============================================
+if __name__ == "__main__":
+    data_inicial = "20230101"
+    data_final = "20231231"
+    cnpj = None
+    codigo_ua = None
+
+    atas = buscar_atas_pncp(data_inicial, data_final, cnpj, codigo_ua)
+    if atas:
+        for ata in atas:
+            salvar_ata_no_banco(ata)
+    else:
+        print("Nenhuma ata encontrada para os parâmetros informados.")
+
+
+
+
+
+
+#pegando a lista total_contratacoes vazia declarada no inicio e ao colocar o .append()estamos simplesmente adicionando um novo item ao final dela. No nosso caso, esse "item" é um dicionário.
+                        #cada vez que o .append() é chamado, um novo dicionário é adicionado dentro dessa lista.
+                        #'numeroContrato' É o nome da chave definida para o dicionário enquanto numero_contrato é o o valor que pegou da API
+                        

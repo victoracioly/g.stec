@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard STEC</title>
+</head>
+<body>
+    <h1>Dashboard STEC - UASG: {{ uasg }}</h1>
+    
+    <h2>Atas de Registro de Preço</h2>
+    
+    {% if atas %}
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome da Ata</th>
+                    <th>Fornecedor</th>
+                    <th>Valor Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ata in atas %}
+                    <tr>
+                        <td>{{ ata.id }}</td>
+                        <td>{{ ata.nome }}</td>
+                        <td>{{ ata.fornecedor }}</td>
+                        <td>{{ ata.valor_total }}</td>
+                        <td>{{ ata.status }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Não há atas registradas para esta UASG.</p>
+    {% endif %}
+</body>
+</html>
