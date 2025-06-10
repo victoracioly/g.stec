@@ -1,0 +1,12 @@
+{% for usuario in usuarios %}
+<tr id="usuario-{{ usuario.id }}">
+  <td>{{ usuario.get_full_name }}</td>
+  <td>{{ usuario.email }}</td>
+  <td>{{ usuario.perfilusuario.telefone }}</td>
+  <td>{{ usuario.perfilusuario.hospital.nome }}</td>
+  <td>{{ usuario.perfilusuario.cargo }}</td>
+  <td>{{ usuario.perfilusuario.funcao }}</td>
+</tr>
+{% empty %}
+<tr><td colspan="6">Nenhum usuário cadastrado.</td></tr>
+{% endfor %}

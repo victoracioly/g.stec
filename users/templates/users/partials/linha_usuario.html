@@ -1,0 +1,29 @@
+<tr>
+  <td>{{ usuario.perfilusuario.nome_completo }}</td>
+  <td>{{ usuario.email }}</td>
+  <td>{{ usuario.perfilusuario.telefone|default:"-" }}</td>
+  <td>
+    {% if usuario.perfilusuario.hospital %}
+      {{ usuario.perfilusuario.hospital.nome }}
+    {% else %}
+      <span class="text-muted">Sem hospital</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if usuario.perfilusuario.cargo == "DIRETOR" %}
+      <span class="badge bg-success text-white">Chefe</span>
+    {% else %}
+      <span class="badge bg-secondary text-white">Técnico</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if usuario.perfilusuario.role == "CEO" %}
+      <span class="badge bg-dark text-white">CEO</span>
+    {% elif usuario.perfilusuario.role == "SEC" %}
+      <span class="badge bg-secondary text-white">SEC</span>
+    {% else %}
+      <span class="badge bg-success text-white">STEC</span>
+    {% endif %}
+  </td>
+  <td></td> <!-- Coluna vazia para alinhamento com botão, se precisar -->
+</tr>

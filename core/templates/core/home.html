@@ -1,0 +1,93 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Painel do Engenheiro Clínico{% endblock %}
+
+{% block content %}
+
+<div class="container">
+  <!-- Quadro de Avisos -->
+  <div class="alert alert-info shadow-sm" role="alert">
+    <strong>📢 Aviso da Administração Central:</strong> Aos que estao participando do TED, favor atentem-se em manter
+  </div>
+
+  <!-- Indicadores em Cards -->
+
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card text-white bg-primary mb-3">
+        <div class="card-body">
+          <h5 class="card-title">Atas Vigentes</h5>
+          <p class="card-text">{{ atas_vigentes }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-white bg-success mb-3">
+        <div class="card-body">
+          <h5 class="card-title">Custo com Equipamentos (R$)</h5>
+          <p class="card-text">{{ custo_equipamentos|floatformat:2 }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card text-white bg-warning mb-3">
+        <div class="card-body">
+          <h5 class="card-title">Custo com Materiais (R$)</h5>
+          <p class="card-text">{{ custo_materiais|floatformat:2 }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contratos Próximos do Vencimento -->
+
+  <div class="card mb-4">
+    <div class="card-header bg-light">
+      <strong>📆 Contratos próximos do vencimento</strong>
+    </div>
+    <ul class="list-group list-group-flush">
+      {% for contrato in contratos_proximos %}
+        <li class="list-group-item">Contrato {{ contrato.numero }} – vence em {{ contrato.vencimento }}</li>
+      {% empty %}
+        <li class="list-group-item">Nenhum contrato próximo do vencimento.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Situação das Atas -->
+
+  <div class="card mb-4">
+    <div class="card-header bg-light">
+      <strong>📁 Situação das Atas</strong>
+    </div>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item">Atas com itens pendentes: {{ atas_pendentes }}</li>
+      <li class="list-group-item">Atas vencidas este ano: {{ atas_vencidas }}</li>
+    </ul>
+  </div>
+
+  <!-- Indicadores Rápidos -->
+
+  <div class="card mb-4">
+    <div class="card-header bg-light">
+      <strong>📊 Indicadores Rápidos</strong>
+    </div>
+    <div class="card-body">
+      <p>Aquisições este mês: <strong>{{ aquisicoes_mes }}</strong></p>
+      <p>Total gasto em contratos ativos: <strong>R$ {{ gasto_contratos|floatformat:2 }}</strong></p>
+      <p>Fornecedores ativos: <strong>{{ fornecedores_ativos }}</strong></p>
+    </div>
+  </div>
+
+  <!-- Gráfico de Tendência (Simulado) -->
+
+  <div class="card mb-4">
+    <div class="card-header bg-light">
+      <strong>📈 Tendência de Aquisições</strong>
+    </div>
+    <div class="card-body">
+      <p>(Aqui pode ser inserido um gráfico de linha usando Chart.js, Plotly ou imagem gerada no backend)</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

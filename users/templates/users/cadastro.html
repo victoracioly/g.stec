@@ -1,0 +1,121 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Usuários - G.STEC{% endblock %}
+
+{% block content %}
+<style>
+  .table-wrapper {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    margin-top: 2rem;
+  }
+  .btn-novo {
+    background-color: #007e3a;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 8px;
+  }
+  .btn-novo:hover {
+    background-color: #00652f;
+  }
+  form .form-control,
+  form .form-select {
+    font-size: 0.9rem;
+    height: 36px;
+    padding: 4px 8px;
+  }
+  .top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+  }
+</style>
+
+<div class="table-wrapper">
+  <div class="top-bar">
+    <h3>Usuários Cadastrados</h3>
+
+    <!-- Botão para abrir modal com formulário inline -->
+    <button
+      class="btn btn-novo"
+      hx-get="{% url 'users:novo_usuario_inline' %}"
+      hx-target="#modal-body"
+      hx-trigger="click"
+      hx-swap="innerHTML">
+      + Novo Usuário
+    </button>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Telefone</th>
+          <th>Hospital</th>
+          <th>Cargo</th>
+          <th>Função</th>
+        </tr>
+      </thead>
+      <tbody id="lista-usuarios">
+        <!-- Lista via HTMX será carregada aqui -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- HTMX carrega a lista de usuários assim que o elemento ficar visível -->
+<div
+  hx-get="{% url 'users:listar_usuarios' %}"
+  hx-trigger="revealed once"
+  hx-target="#lista-usuarios"
+  hx-swap="innerHTML">
+</div>
+
+<!-- Modal Bootstrap para exibir o formulário -->
+<div class="modal fade" id="modalCadastro" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Cadastro de Usuário</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <!-- Formulário será carregado aqui via HTMX -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Exibir modal após conteúdo ser carregado no #modal-body
+  document.body.addEventListener('htmx:afterSwap', e => {
+    if (e.detail.target.id === 'modal-body') {
+      var modal = new bootstrap.Modal(document.getElementById('modalCadastro'));
+      modal.show();
+    }
+  });
+
+  // Fechar modal se formulário enviado com sucesso (sem campos form-control na resposta)
+  document.body.addEventListener('htmx:afterRequest', e => {
+    if (e.detail.target.id === 'modal-body' && e.detail.xhr.status === 200) {
+      const resp = e.detail.xhr.responseText;
+      if (!resp.includes('form-control')) {
+        bootstrap.Modal.getInstance(document.getElementById('modalCadastro')).hide();
+        htmx.trigger('#lista-usuarios', 'refresh');
+      }
+    }
+  });
+
+  // Recarregar lista de usuários ao receber evento 'refresh'
+  document.body.addEventListener('refresh', e => {
+    htmx.trigger('#lista-usuarios', 'refresh');
+  });
+</script>
+
+{% endblock %}

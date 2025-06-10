@@ -1,52 +1,52 @@
-from django.contrib.auth.models import Group, Permission, User
+from django.contrib.auth.models import Group, User
 from django.db import models
 
-# ====== Modelagem de Perfis ======
-# Grupos de usuários
-GROUPS = {
-    'STEC': 'Setor de Engenharia Clínica',
-    'SEC': 'Serviço de Engenharia Clínica',
-    'CEO': 'CEO da EBSERH'
+PERMISSOES = {
+    'STEC': 'Permissão de acesso restrito à UASG',
+    'SEC': 'Acesso total aos dados das unidades',
+    'CEO': 'Visualização de relatórios gerais'
 }
 
-# Função para criar os grupos e permissões
-def criar_grupos():
-    """
-    Função para criar os grupos de usuários (perfis) no banco de dados.
-    Se o grupo já existir, ele apenas ignora e segue.
-    """
-    for group_name, description in GROUPS.items():
-        group, created = Group.objects.get_or_create(name=group_name)
-        if created:
-            print(f"Grupo {description} criado com sucesso.")
+CARGO_CHOICES = [
+    ('ENGENHEIRO', 'Engenheiro Clínico'),
+    ('ASSISTENTE', 'Assistente Administrativo'),
+    ('ANALISTA', 'Analista Administrativo'),
+    ('DIRETOR', 'Diretor'),
+]
 
+ROLE_CHOICES = [
+    ('STEC', 'STEC'),
+    ('SEC', 'SEC'),
+    ('CEO', 'CEO'),
+]
 
-# ====== Modelagem de Hospital ======
 class Hospital(models.Model):
     nome = models.CharField(max_length=255)
     uasg = models.CharField(max_length=10, unique=True)
-    cnpj = models.CharField(max_length=18, unique=True)  # Inclui máscara de CNPJ
+    cnpj = models.CharField(max_length=18, unique=True)
+    cidade = models.CharField(max_length=100, blank=True, null=True)
+    estado = models.CharField(max_length=2, blank=True, null=True)
     endereco = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.nome} - {self.uasg}"
 
-
-# ====== Modelagem dos Dashboards ======
-class Dashboard(models.Model):
+class PerfilUsuario(models.Model):
     usuario = models.OneToOneField(User, on_delete=models.CASCADE)
+    nome_completo = models.CharField(max_length=255)
+    telefone = models.CharField(max_length=20, blank=True, null=True)
     hospital = models.ForeignKey(Hospital, on_delete=models.SET_NULL, null=True, blank=True)
-    role = models.CharField(max_length=20, choices=[('STEC', 'STEC'), ('SEC', 'SEC'), ('CEO', 'CEO')])
-    
-    def __str__(self):
-        return f"{self.usuario.username} - {self.role}"
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    cargo = models.CharField(max_length=20, choices=CARGO_CHOICES)
 
-    def get_dashboard_data(self):
+    def __str__(self):
+        return f"{self.nome_completo} - {self.get_role_display()} - {self.get_cargo_display()}"
+
+    def get_perfil_resumo(self):
         if self.role == 'STEC' and self.hospital:
-            return f"Dashboard do STEC para o Hospital: {self.hospital.nome}"
+            return f"Acesso STEC - {self.hospital.nome}"
         elif self.role == 'SEC':
-            return "Dashboard do SEC - Visualização Global"
+            return "Acesso SEC - Visualização Global"
         elif self.role == 'CEO':
-            return "Dashboard Resumido para CEO"
-        else:
-            return "Perfil não identificado"
+            return "Acesso CEO - Relatórios Institucionais"
+        return "Acesso não identificado"

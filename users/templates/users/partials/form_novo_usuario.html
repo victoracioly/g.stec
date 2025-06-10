@@ -1,4 +1,3 @@
-{#
 {% load widget_tweaks %}
 
 <table class="table">
@@ -16,11 +15,12 @@
     <tr id="form-novo-usuario-row">
       <td colspan="6">
         <form
-          hx-post="{% url 'criar_usuario' %}"
+          hx-post="{% url 'users:criar_usuario' %}"
           hx-target="#form-novo-usuario-row"
           hx-swap="outerHTML"
           hx-on="htmx:afterSwap: if (!event.detail.xhr.response.includes('form-control')) this.closest('tr').remove()"
-          class="row g-2 align-items-start">
+          class="row g-2 align-items-start"
+          novalidate>
 
           {% csrf_token %}
 

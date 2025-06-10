@@ -1,0 +1,90 @@
+{% load widget_tweaks %}
+
+<tr id="form-novo-usuario-row">
+  <td colspan="6">
+    <form
+      hx-post="{% url 'users:criar_usuario' %}"
+      hx-target="#form-novo-usuario-row"
+      hx-swap="outerHTML"
+      hx-on="htmx:afterSwap: if (!event.detail.xhr.response.includes('form-control')) this.closest('tr').remove()"
+      class="row g-3 p-3">
+
+      {% csrf_token %}
+
+      <div class="col-md-4">
+        <label for="{{ form.nome_completo.id_for_label }}" class="form-label fw-semibold">Nome Completo</label>
+        {% if form.nome_completo.errors %}
+          {{ form.nome_completo|add_class:"form-control is-invalid" }}
+          <div class="invalid-feedback">{{ form.nome_completo.errors.0 }}</div>
+        {% else %}
+          {{ form.nome_completo|add_class:"form-control" }}
+        {% endif %}
+      </div>
+
+      <div class="col-md-4">
+        <label for="{{ form.email.id_for_label }}" class="form-label fw-semibold">Email</label>
+        {% if form.email.errors %}
+          {{ form.email|add_class:"form-control is-invalid" }}
+          <div class="invalid-feedback">{{ form.email.errors.0 }}</div>
+        {% else %}
+          {{ form.email|add_class:"form-control" }}
+        {% endif %}
+      </div>
+
+      <div class="col-md-3">
+        <label for="{{ form.telefone.id_for_label }}" class="form-label fw-semibold">Telefone</label>
+        {% if form.telefone.errors %}
+          {{ form.telefone|add_class:"form-control is-invalid" }}
+          <div class="invalid-feedback">{{ form.telefone.errors.0 }}</div>
+        {% else %}
+          {{ form.telefone|add_class:"form-control" }}
+        {% endif %}
+      </div>
+
+      <div class="col-md-3">
+        <label for="{{ form.hospital.id_for_label }}" class="form-label fw-semibold">Hospital</label>
+        {% if form.hospital.errors %}
+          {{ form.hospital|add_class:"form-select is-invalid" }}
+          <div class="invalid-feedback">{{ form.hospital.errors.0 }}</div>
+        {% else %}
+          {{ form.hospital|add_class:"form-select" }}
+        {% endif %}
+      </div>
+
+      <div class="col-md-3">
+        <label for="{{ form.cargo.id_for_label }}" class="form-label fw-semibold">Cargo</label>
+        {% if form.cargo.errors %}
+          {{ form.cargo|add_class:"form-select is-invalid" }}
+          <div class="invalid-feedback">{{ form.cargo.errors.0 }}</div>
+        {% else %}
+          {{ form.cargo|add_class:"form-select" }}
+        {% endif %}
+      </div>
+
+      <div class="col-md-2">
+        <label for="{{ form.role.id_for_label }}" class="form-label fw-semibold">Função</label>
+        {% if form.role.errors %}
+          {{ form.role|add_class:"form-select is-invalid" }}
+          <div class="invalid-feedback">{{ form.role.errors.0 }}</div>
+        {% else %}
+          {{ form.role|add_class:"form-select" }}
+        {% endif %}
+      </div>
+
+      <div class="col-md-12 d-flex justify-content-end">
+        <button type="submit" class="btn btn-success px-4">Salvar</button>
+      </div>
+
+    </form>
+  </td>
+</tr>
+
+<style>
+  .modal-dialog {
+    max-width: 900px;
+  }
+  .form-label {
+    font-size: 0.9rem;
+    color: #333;
+  }
+</style>
