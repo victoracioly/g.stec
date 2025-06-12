@@ -175,14 +175,16 @@
                 <li class="inactive"><i class="fa-solid fa-question-circle"></i> FAQ</li>
             </ul>
         </li>
+
+        <!-- link para Dispositivos Médicos ANVISA -->
+        <li><a href="{% url 'dispositivos_medicos_anvisa:lista_dispositivos' %}"><i class="fa-solid fa-table-list"></i> Dispositivos Médicos ANVISA</a></li>
     </ul>
 </div>
 
 <!-- área de conteúdo principal -->
 <div class="main-content" id="main-content">
     <h1 class="mb-4">G.STEC</h1>
-    {% block content %}
-    {% endblock %}
+    {% block content %}{% endblock %}
 </div>
 
 <!-- scripts -->

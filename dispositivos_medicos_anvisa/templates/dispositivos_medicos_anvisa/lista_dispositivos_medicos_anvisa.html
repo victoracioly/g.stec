@@ -7,8 +7,11 @@
     {% if total_dispositivos or top_paises or top_fabricantes %}
     <div class="alert alert-info">
         <strong>Resumo:</strong>
-        <br>Total de dispositivos exibidos: <strong>{{ total_dispositivos }}</strong> <br>
-        <small class="text-muted">OBS: Todos os registros duplicados estão sendo sobrescritos. Só o último de cada grupo com mesmo número de registro é salvo no banco.</small>
+        <br>Total de dispositivos exibidos: <strong>{{ total_dispositivos }}</strong><br>
+        <small class="text-muted">
+            OBS: Todos os registros duplicados estão sendo sobrescritos. Só o último de cada grupo
+            com mesmo número de registro é salvo no banco.
+        </small>
 
         {% if top_paises %}
             <br>Top 3 países de origem:
@@ -23,7 +26,7 @@
             {% endfor %}
         {% endif %}
         {% if ultima_atualizacao %}
-            <br>Última atualização da base: <strong>{{ ultima_atualizacao|date:"d/m/Y" }}</strong>
+            <br>Última atualização da base: <strong>{{ ultima_atualizacao }}</strong>
         {% endif %}
     </div>
     {% endif %}
@@ -31,40 +34,84 @@
     <form method="get" class="row g-2 mb-4 align-items-end">
         <div class="col-md-3">
             <label for="nome_comercial" class="form-label">Nome Comercial</label>
-            <input type="text" name="nome_comercial" id="nome_comercial" class="form-control" value="{{ request.GET.nome_comercial }}">
+            <input
+                type="text"
+                name="nome_comercial"
+                id="nome_comercial"
+                class="form-control"
+                value="{{ request.GET.nome_comercial }}"
+            >
         </div>
         <div class="col-md-2">
             <label for="numero_registro" class="form-label">Nº Registro</label>
-            <input type="text" name="numero_registro" id="numero_registro" class="form-control" value="{{ request.GET.numero_registro }}">
+            <input
+                type="text"
+                name="numero_registro"
+                id="numero_registro"
+                class="form-control"
+                value="{{ request.GET.numero_registro }}"
+            >
         </div>
         <div class="col-md-2">
             <label for="fabricante" class="form-label">Fabricante</label>
-            <input type="text" name="fabricante" id="fabricante" class="form-control" value="{{ request.GET.fabricante }}">
+            <input
+                type="text"
+                name="fabricante"
+                id="fabricante"
+                class="form-control"
+                value="{{ request.GET.fabricante }}"
+            >
         </div>
         <div class="col-md-2">
             <label for="pais_fabricante" class="form-label">País do Fabricante</label>
-            <input type="text" name="pais_fabricante" id="pais_fabricante" class="form-control" value="{{ request.GET.pais_fabricante }}">
+            <input
+                type="text"
+                name="pais_fabricante"
+                id="pais_fabricante"
+                class="form-control"
+                value="{{ request.GET.pais_fabricante }}"
+            >
         </div>
         <div class="col-md-2">
             <label for="classe_risco" class="form-label">Classe de Risco</label>
-            <input type="text" name="classe_risco" id="classe_risco" class="form-control" value="{{ request.GET.classe_risco }}">
+            <input
+                type="text"
+                name="classe_risco"
+                id="classe_risco"
+                class="form-control"
+                value="{{ request.GET.classe_risco }}"
+            >
         </div>
         <div class="col-md-2">
             <label for="vigentes" class="form-label">Status</label>
             <select name="vigentes" id="vigentes" class="form-select">
                 <option value="">Todos</option>
-                <option value="1" {% if request.GET.vigentes == '1' %}selected{% endif %}>Somente Vigentes</option>
+                <option value="1" {% if request.GET.vigentes == '1' %}selected{% endif %}>
+                    Somente Vigentes
+                </option>
             </select>
         </div>
         <div class="col-md-2">
             <button type="submit" class="btn btn-primary w-100">Filtrar</button>
         </div>
         <div class="col-md-2">
-            <a class="btn btn-outline-secondary w-100" href="{% url 'exportar_dispositivos_pdf' %}?{% for key, value in request.GET.items %}{{ key }}={{ value }}&{% endfor %}">
+            <a
+                class="btn btn-outline-secondary w-100"
+{#                href="{% url 'exportar_dispositivos_pdf' %}?{% for key, value in request.GET.items %}{{ key }}={{ value }}&{% endfor %}"#}
+            >
                 Exportar PDF
             </a>
         </div>
     </form>
+
+    {% if filtros %}
+    <div class="mb-3">
+        <strong>Filtros ativos:</strong>
+        {% for f in filtros %}
+            <span class="badge bg-info">{{ f }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     <div class="table-responsive">
         <table class="table table-bordered table-sm table-striped">
@@ -86,15 +133,21 @@
                     <td>
                         {{ d.nome_comercial }}
                         {% if d.numero_processo and d.numero_registro_cadastro %}
-                            <a href="https://consultas.anvisa.gov.br/#/saude/{{ d.numero_processo }}/?numeroRegistro={{ d.numero_registro_cadastro }}"
-                               target="_blank" title="Ver detalhes na Anvisa" style="text-decoration: none;">🔗</a>
+                            <a
+                                href="https://consultas.anvisa.gov.br/#/saude/{{ d.numero_processo }}/?numeroRegistro={{ d.numero_registro_cadastro }}"
+                                target="_blank"
+                                title="Ver detalhes na Anvisa"
+                                style="text-decoration: none;"
+                            >🔗</a>
                         {% endif %}
                     </td>
                     <td>{{ d.nome_fabricante }}</td>
                     <td>{{ d.nome_pais_fabricante }}</td>
                     <td>{{ d.classe_risco }}</td>
                     <td>{{ d.data_publicacao_registro|date:"d/m/Y" }}</td>
-                    <td>{{ d.validade_registro|date:"d/m/Y"}}</td>
+                    <td>
+                        {{ d.validade_display|default:d.validade_registro }}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -109,19 +162,34 @@
     <nav class="mt-3">
         <ul class="pagination justify-content-center">
             {% if dispositivos.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ dispositivos.previous_page_number }}">Anterior</a>
-                </li>
+            <li class="page-item">
+                <a
+                    class="page-link"
+                    href="?{% for key, value in request.GET.items %}
+                             {% if key != 'page' %}{{ key }}={{ value }}&{% endif %}
+                         {% endfor %}page={{ dispositivos.previous_page_number }}"
+                >Anterior</a>
+            </li>
             {% endif %}
             {% for num in dispositivos.paginator.page_range %}
-                <li class="page-item {% if dispositivos.number == num %}active{% endif %}">
-                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
-                </li>
+            <li class="page-item {% if dispositivos.number == num %}active{% endif %}">
+                <a
+                    class="page-link"
+                    href="?{% for key, value in request.GET.items %}
+                             {% if key != 'page' %}{{ key }}={{ value }}&{% endif %}
+                         {% endfor %}page={{ num }}"
+                >{{ num }}</a>
+            </li>
             {% endfor %}
             {% if dispositivos.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ dispositivos.next_page_number }}">Próxima</a>
-                </li>
+            <li class="page-item">
+                <a
+                    class="page-link"
+                    href="?{% for key, value in request.GET.items %}
+                             {% if key != 'page' %}{{ key }}={{ value }}&{% endif %}
+                         {% endfor %}page={{ dispositivos.next_page_number }}"
+                >Próxima</a>
+            </li>
             {% endif %}
         </ul>
     </nav>

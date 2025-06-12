@@ -11,7 +11,7 @@ class DispositivoMedicoAnvisa(models.Model):
     nome_fabricante = models.CharField(max_length=255, blank=True, null=True)
     nome_pais_fabricante = models.CharField(max_length=100, blank=True, null=True)
     data_publicacao_registro = models.DateField(blank=True, null=True)
-    validade_registro = models.DateField(blank=True, null=True)
+    validade_registro = models.CharField(max_length=255, blank=True, null=True)
     data_atualizacao = models.DateField(blank=True, null=True)
     #Como alguns campos são datas e outros podem vir vazios no Excel, 
     #é bom usar blank=True, null=True para evitar erros durante o parsing.
