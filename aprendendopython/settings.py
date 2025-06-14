@@ -14,7 +14,7 @@ SECRET_KEY = "django-insecure-kg6j-*-dhz-j9s2mqv1a$r^4*huz0p&2^5h&0@5u2!0!0y)$0$
 DEBUG = False
 
 # Domínios autorizados a acessar o sistema
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'victoracioly.pythonanywhere.com']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '*']
 
 # =========================
 # Aplicativos instalados
