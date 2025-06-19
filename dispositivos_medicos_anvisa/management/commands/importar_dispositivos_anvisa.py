@@ -1,13 +1,12 @@
 # Importa bibliotecas necessárias
-import os  # Para manipular caminhos e diretórios
-import requests  # Para fazer download do CSV pela internet
-import pandas as pd  # Biblioteca de manipulação de dados (planilhas, tabelas)
-from io import BytesIO  # Para tratar arquivos em memória como se fossem arquivos físicos
-from datetime import date  # Para lidar com datas
-from django.core.management.base import BaseCommand  # Base para criar comandos customizados do Django
-from dispositivos_medicos_anvisa.models import DispositivoMedicoAnvisa  # Modelo que vamos popular com os dados
+import os
+import requests
+import pandas as pd
+from io import BytesIO
+from datetime import date
+from django.core.management.base import BaseCommand
+from dispositivos_medicos_anvisa.models import DispositivoMedicoAnvisa
 
-# Criação do comando customizado do Django
 class Command(BaseCommand):
     help = 'Importa a lista de dispositivos médicos a partir de um CSV público no S3'
 
@@ -26,6 +25,7 @@ class Command(BaseCommand):
             with open(csv_path, 'wb') as f:
                 f.write(response.content)
             csv_data = BytesIO(response.content)
+            self.stdout.write('✅ Download realizado com sucesso.')
         except Exception as e:
             self.stderr.write(f"⚠️ Erro ao baixar, tentando usar o último CSV salvo. {e}")
             if not os.path.exists(csv_path):
@@ -34,16 +34,20 @@ class Command(BaseCommand):
             with open(csv_path, 'rb') as f:
                 csv_data = BytesIO(f.read())
 
-        # Lê o CSV, forçando tudo como texto para evitar erros de tipo
-        df = pd.read_csv(
-            csv_data,
-            sep=';',
-            encoding='latin1',
-            dtype=str,
-            converters={'NUMERO_REGISTRO_CADASTRO': lambda x: str(x).strip()}
-        )
-        df.columns = df.columns.str.strip()
+        try:
+            df = pd.read_csv(
+                csv_data,
+                sep=';',
+                encoding='latin1',
+                dtype=str,
+                converters={'NUMERO_REGISTRO_CADASTRO': lambda x: str(x).strip()}
+            )
+            self.stdout.write(f'✅ CSV lido com sucesso. Total de linhas: {len(df)}')
+        except Exception as e:
+            self.stderr.write(f'❌ Erro ao ler o CSV: {e}')
+            return
 
+        df.columns = df.columns.str.strip()
         colunas_esperadas = [
             'NUMERO_REGISTRO_CADASTRO', 'NUMERO_PROCESSO', 'NOME_TECNICO',
             'CLASSE_RISCO', 'NOME_COMERCIAL', 'CNPJ_DETENTOR_REGISTRO_CADASTRO',
@@ -56,27 +60,28 @@ class Command(BaseCommand):
             return
 
         def limpar(valor):
-            if pd.isna(valor) or str(valor).lower().strip() in ('nan', 'none', ''):
-                return ''
-            return str(valor).strip().zfill(14)
+            v = str(valor).strip() if valor else ''
+            self.stdout.write(f"[LIMPAR] Original: {valor} | Limpo: {v}")
+            return v.zfill(14) if v else ''
 
-        # Função segura para transformar string em data
         def limpar_data(valor):
+            original = str(valor)
+            self.stdout.write(f"[DATA] Valor original: '{original}'")
             try:
-                if not valor or "00/00" in str(valor) or str(valor).lower().strip() in ("n/a", "nan", "vigente"):
+                if not valor or "00/00" in original or original.lower().strip() in ("n/a", "nan", "vigente"):
                     return date(3000, 1, 1)
-
-                # Tenta múltiplas abordagens para interpretar a data
                 for tentativa in [
                     lambda x: pd.to_datetime(x, format="%m/%d/%Y %H:%M:%S", errors="coerce"),
                     lambda x: pd.to_datetime(x, errors="coerce", dayfirst=True)
                 ]:
                     dt = tentativa(valor)
-                    if pd.notna(dt):
-                        return dt.date()  # Somente se for válida
-
+                    if pd.notna(dt) and not pd.isna(dt) and dt is not pd.NaT:
+                        self.stdout.write(f"[DATA OK] '{original}' ➜ {dt.date()}")
+                        return dt.date()
+                self.stdout.write(f"[DATA FAIL] '{original}' nao convertida ➜ 3000-01-01")
                 return date(3000, 1, 1)
-            except Exception:
+            except Exception as e:
+                self.stderr.write(f"[EXCEPTION limpar_data] '{valor}' ➜ {e}")
                 return date(3000, 1, 1)
 
         registros_sucesso = 0
@@ -88,7 +93,6 @@ class Command(BaseCommand):
         for idx, row in df.iterrows():
             if idx % 100 == 0:
                 self.stdout.write(f"🔄 Processando linha {idx}/{len(df)}...")
-
             try:
                 numero = limpar(row.get('NUMERO_REGISTRO_CADASTRO'))
                 if not numero:
@@ -98,6 +102,11 @@ class Command(BaseCommand):
                     with open('log_erros_importacao.txt', 'a', encoding='utf-8') as log_file:
                         log_file.write(msg)
                     continue
+
+                data_pub = limpar_data(row.get('DT_PUB_REGISTRO_CADASTRO'))
+                data_atual = limpar_data(row.get('DT_ATUALIZACAO_DADO'))
+
+                self.stdout.write(f"[DEBUG LINHA {idx}] Num: {numero}, Pub: {data_pub}, Atual: {data_atual}")
 
                 DispositivoMedicoAnvisa.objects.update_or_create(
                     numero_registro_cadastro=numero,
@@ -110,15 +119,15 @@ class Command(BaseCommand):
                         'detentor_registro': limpar(row.get('DETENTOR_REGISTRO_CADASTRO')),
                         'nome_fabricante': limpar(row.get('NOME_FABRICANTE')),
                         'nome_pais_fabricante': limpar(row.get('NOME_PAIS_FABRIC')),
-                        'data_publicacao_registro': limpar_data(row.get('DT_PUB_REGISTRO_CADASTRO')),
+                        'data_publicacao_registro': data_pub,
                         'validade_registro': limpar(row.get('VALIDADE_REGISTRO_CADASTRO')),
-                        'data_atualizacao': limpar_data(row.get('DT_ATUALIZACAO_DADO')),
+                        'data_atualizacao': data_atual,
                     }
                 )
                 registros_sucesso += 1
             except Exception as e:
                 registros_erro += 1
-                msg = f"⚠️ Erro na linha {idx} - Registro {row.get('NUMERO_REGISTRO_CADASTRO')}: {e}\n"
+                msg = f"❌ Erro na linha {idx} - Registro {row.get('NUMERO_REGISTRO_CADASTRO')}: {e}\n"
                 self.stderr.write(msg)
                 with open('log_erros_importacao.txt', 'a', encoding='utf-8') as log_file:
                     log_file.write(msg)
