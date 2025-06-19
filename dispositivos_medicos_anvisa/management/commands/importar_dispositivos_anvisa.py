@@ -60,12 +60,21 @@ class Command(BaseCommand):
 
         def limpar_data(valor):
             try:
-                if not valor or "00/00" in valor or str(valor).lower() in ("n/a", "nan", "vigente"):
+                if not valor or "00/00" in str(valor) or str(valor).lower().strip() in ("n/a", "nan", "vigente"):
                     return date(3000, 1, 1)
+
+                # Primeiro, tenta formato conhecido
                 dt = pd.to_datetime(valor, format="%m/%d/%Y %H:%M:%S", errors="coerce")
+
+                # Se falhar, tenta genérico com dayfirst
+                if pd.isna(dt) or dt is pd.NaT:
+                    dt = pd.to_datetime(valor, errors="coerce", dayfirst=True)
+
                 if pd.isna(dt) or dt is pd.NaT:
                     return date(3000, 1, 1)
+
                 return dt.date()
+
             except Exception:
                 return date(3000, 1, 1)
 
