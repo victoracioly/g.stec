@@ -55,6 +55,13 @@ class Command(BaseCommand):
                 return None
             return self.parse_date(valor)
 
+        registros_sucesso = 0
+        registros_erro = 0
+
+        # Limpa o log anterior
+        with open('log_erros_importacao.txt', 'w', encoding='utf-8') as log_file:
+            log_file.write("LOG DE ERROS DE IMPORTAÇÃO\n\n")
+
         for idx, row in df.iterrows():
             if idx % 1000 == 0:
                 self.stdout.write(f"🔄 Processando linha {idx}/{len(df)}...")
@@ -76,8 +83,13 @@ class Command(BaseCommand):
                         'data_atualizacao': limpar_data(row.get('DT_ATUALIZACAO_DADO')),
                     }
                 )
+                registros_sucesso += 1
             except Exception as e:
-                self.stderr.write(f"⚠️ Erro na linha {idx}: {e}")
+                registros_erro += 1
+                mensagem_erro = f"⚠️ Erro na linha {idx} - Registro {row.get('NUMERO_REGISTRO_CADASTRO')}: {e}\n"
+                self.stderr.write(mensagem_erro)
+                with open('log_erros_importacao.txt', 'a', encoding='utf-8') as log_file:
+                    log_file.write(mensagem_erro)
 
         total_linhas_csv = len(df)
         total_banco = DispositivoMedicoAnvisa.objects.count()
@@ -85,17 +97,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('✅ Importação concluída com sucesso.'))
         self.stdout.write(self.style.WARNING(f'Total de linhas no CSV: {total_linhas_csv}'))
         self.stdout.write(self.style.WARNING(f'Total de registros salvos no banco: {total_banco}'))
-
-    # def parse_date(self, value):
-    #     try:
-    #         data = pd.to_datetime(value, format="%d/%m/%Y", errors="coerce")
-    #         return data.date() if pd.notna(data) else None
-    #     except Exception:
-    #         return None
+        self.stdout.write(self.style.SUCCESS(f'✅ Registros salvos com sucesso: {registros_sucesso}'))
+        self.stdout.write(self.style.ERROR(f'❌ Registros com erro: {registros_erro} (ver log_erros_importacao.txt)'))
 
     def parse_date(self, value):
         try:
-            return pd.to_datetime(value, format="%m/%d/%Y %H:%M:%S", errors="coerce").date() if pd.notna(
-                value) else None
+            return pd.to_datetime(value, format="%m/%d/%Y %H:%M:%S", errors="coerce").date() if pd.notna(value) else None
         except Exception:
             return None
