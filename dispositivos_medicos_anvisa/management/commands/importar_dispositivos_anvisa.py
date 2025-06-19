@@ -77,9 +77,18 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f'Total de linhas no CSV: {total_linhas_csv}'))
         self.stdout.write(self.style.WARNING(f'Total de registros salvos no banco: {total_banco}'))
 
+    # def parse_date(self, value):
+    #     try:
+    #         return pd.to_datetime(value, dayfirst=True).date() if pd.notna(value) else None
+    #     except Exception:
+    #         return None
+
     def parse_date(self, value):
         try:
-            return pd.to_datetime(value, dayfirst=True).date() if pd.notna(value) else None
+            data = pd.to_datetime(value, dayfirst=True, errors="coerce")
+            if pd.isna(data):
+                return None
+            return data.date()
         except Exception:
             return None
 
