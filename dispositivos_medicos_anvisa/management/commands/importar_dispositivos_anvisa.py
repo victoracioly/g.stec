@@ -63,7 +63,9 @@ class Command(BaseCommand):
                 if not valor or "00/00" in valor or str(valor).lower() in ("n/a", "nan", "vigente"):
                     return date(3000, 1, 1)
                 dt = pd.to_datetime(valor, format="%m/%d/%Y %H:%M:%S", errors="coerce")
-                return dt.date() if pd.notna(dt) else date(3000, 1, 1)
+                if pd.isna(dt) or dt is pd.NaT:
+                    return date(3000, 1, 1)
+                return dt.date()
             except Exception:
                 return date(3000, 1, 1)
 
