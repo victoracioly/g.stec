@@ -9,8 +9,8 @@
         <strong>Resumo:</strong>
         <br>Total de dispositivos exibidos: <strong>{{ total_dispositivos }}</strong><br>
         <small class="text-muted">
-            OBS: Todos os registros duplicados estão sendo sobrescritos. Só o último de cada grupo
-            com mesmo número de registro é salvo no banco.
+            BS: Apenas o último registro de cada número de registro é mantido.
+            Registros duplicados são sobrescritos durante a importação.
         </small>
 
         {% if top_paises %}
