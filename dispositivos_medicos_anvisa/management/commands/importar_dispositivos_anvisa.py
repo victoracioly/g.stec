@@ -14,7 +14,6 @@ class Command(BaseCommand):
         url_csv = 'https://gstec-anvisa.s3.sa-east-1.amazonaws.com/dispositivos.csv'
         self.stdout.write(f'📥 Baixando CSV diretamente do S3: {url_csv}')
 
-        # Caminho do CSV salvo localmente
         base_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(base_dir, '..', '..', 'data')
         os.makedirs(data_dir, exist_ok=True)
@@ -65,17 +64,26 @@ class Command(BaseCommand):
         registros_sucesso = 0
         registros_erro = 0
 
-        # Limpa o log anterior
         with open('log_erros_importacao.txt', 'w', encoding='utf-8') as log_file:
             log_file.write("LOG DE ERROS DE IMPORTAÇÃO\n\n")
 
         for idx, row in df.iterrows():
-            if idx % 1000 == 0:
+            if idx % 100 == 0:
                 self.stdout.write(f"🔄 Processando linha {idx}/{len(df)}...")
 
             try:
+                numero = limpar(row.get('NUMERO_REGISTRO_CADASTRO'))
+
+                if not numero or numero.lower() in ('nan', 'none'):
+                    registros_erro += 1
+                    mensagem_erro = f"⚠️ Linha {idx} ignorada - Número de registro vazio ou inválido.\n"
+                    self.stderr.write(mensagem_erro)
+                    with open('log_erros_importacao.txt', 'a', encoding='utf-8') as log_file:
+                        log_file.write(mensagem_erro)
+                    continue
+
                 DispositivoMedicoAnvisa.objects.update_or_create(
-                    numero_registro_cadastro=limpar(row.get('NUMERO_REGISTRO_CADASTRO')),
+                    numero_registro_cadastro=numero,
                     defaults={
                         'numero_processo': limpar(row.get('NUMERO_PROCESSO')),
                         'nome_tecnico': limpar(row.get('NOME_TECNICO')),
