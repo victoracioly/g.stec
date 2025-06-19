@@ -33,7 +33,13 @@ class Command(BaseCommand):
             with open(csv_path, 'rb') as f:
                 csv_data = BytesIO(f.read())
 
-        df = pd.read_csv(csv_data, sep=';', encoding='latin1', dtype=str)
+        df = pd.read_csv(
+            csv_data,
+            sep=';',
+            encoding='latin1',
+            dtype=str,
+            converters={'NUMERO_REGISTRO_CADASTRO': lambda x: str(x).strip()}
+        )
         df.columns = df.columns.str.strip()
 
         colunas_esperadas = [
@@ -48,16 +54,16 @@ class Command(BaseCommand):
             return
 
         def limpar(valor):
-            return str(valor).strip() if pd.notna(valor) else ''
+            if pd.isna(valor) or str(valor).lower().strip() in ('nan', 'none', ''):
+                return ''
+            return str(valor).strip().zfill(14)
 
         def limpar_data(valor):
             try:
                 if not valor or "00/00" in valor or str(valor).lower() in ("n/a", "nan", "vigente"):
                     return date(3000, 1, 1)
                 dt = pd.to_datetime(valor, format="%m/%d/%Y %H:%M:%S", errors="coerce")
-                if pd.isna(dt):
-                    return date(3000, 1, 1)
-                return dt.date()
+                return dt.date() if pd.notna(dt) else date(3000, 1, 1)
             except Exception:
                 return date(3000, 1, 1)
 
@@ -74,7 +80,7 @@ class Command(BaseCommand):
             try:
                 numero = limpar(row.get('NUMERO_REGISTRO_CADASTRO'))
 
-                if not numero or numero.lower() in ('nan', 'none'):
+                if not numero:
                     registros_erro += 1
                     mensagem_erro = f"⚠️ Linha {idx} ignorada - Número de registro vazio ou inválido.\n"
                     self.stderr.write(mensagem_erro)
