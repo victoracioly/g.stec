@@ -2,6 +2,7 @@ import os
 import requests
 import pandas as pd
 from io import BytesIO
+from datetime import date
 from django.core.management.base import BaseCommand
 from dispositivos_medicos_anvisa.models import DispositivoMedicoAnvisa
 
@@ -51,9 +52,13 @@ class Command(BaseCommand):
             return str(valor).strip() if pd.notna(valor) else ''
 
         def limpar_data(valor):
-            if not valor or "00/00" in valor or valor.lower() in ("n/a", "nan"):
-                return None
-            return self.parse_date(valor)
+            if not valor or "00/00" in valor or valor.lower() in ("n/a", "nan", "vigente"):
+                return date(3000, 1, 1)
+            try:
+                dt = pd.to_datetime(valor, format="%m/%d/%Y %H:%M:%S", errors="coerce")
+                return dt.date() if pd.notna(dt) else date(3000, 1, 1)
+            except Exception:
+                return date(3000, 1, 1)
 
         registros_sucesso = 0
         registros_erro = 0
@@ -101,7 +106,5 @@ class Command(BaseCommand):
         self.stdout.write(self.style.ERROR(f'❌ Registros com erro: {registros_erro} (ver log_erros_importacao.txt)'))
 
     def parse_date(self, value):
-        try:
-            return pd.to_datetime(value, format="%m/%d/%Y %H:%M:%S", errors="coerce").date() if pd.notna(value) else None
-        except Exception:
-            return None
+        # Esse método ainda existe, mas foi substituído por limpar_data
+        return date(3000, 1, 1)

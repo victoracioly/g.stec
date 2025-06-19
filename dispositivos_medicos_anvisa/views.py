@@ -9,6 +9,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
+from urllib.parse import urlencode
+
 
 def build_q_object(field_name, terms):
     q = Q()
@@ -18,14 +20,15 @@ def build_q_object(field_name, terms):
             q |= Q(**{f"{field_name}__icontains": t})
     return q
 
+
 def lista_dispositivos(request):
     qs = DispositivoMedicoAnvisa.objects.all()
 
-    nome_comercial  = request.GET.get('nome_comercial', '').strip()
+    nome_comercial = request.GET.get('nome_comercial', '').strip()
     numero_registro = request.GET.get('numero_registro', '').strip()
-    fabricante      = request.GET.get('fabricante', '').strip()
+    fabricante = request.GET.get('fabricante', '').strip()
     pais_fabricante = request.GET.get('pais_fabricante', '').strip()
-    classe_risco    = request.GET.get('classe_risco', '').strip()
+    classe_risco = request.GET.get('classe_risco', '').strip()
 
     if nome_comercial:
         qs = qs.filter(build_q_object('nome_comercial', nome_comercial.split(',')))
@@ -42,15 +45,15 @@ def lista_dispositivos(request):
 
     top_paises = (
         qs.values('nome_pais_fabricante')
-          .exclude(nome_pais_fabricante__exact='')
-          .annotate(total=Count('id'))
-          .order_by('-total')[:3]
+        .exclude(nome_pais_fabricante__exact='')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:3]
     )
     top_fabricantes = (
         qs.values('nome_fabricante')
-          .exclude(nome_fabricante__exact='')
-          .annotate(total=Count('id'))
-          .order_by('-total')[:3]
+        .exclude(nome_fabricante__exact='')
+        .annotate(total=Count('id'))
+        .order_by('-total')[:3]
     )
 
     ultima = DispositivoMedicoAnvisa.objects.aggregate(ultima=Max('data_atualizacao'))['ultima']
@@ -64,15 +67,21 @@ def lista_dispositivos(request):
         )
     ).order_by('-is_date', 'validade_registro')
 
-    paginator = Paginator(qs, 1000)
+    paginator = Paginator(qs, 100)
+    page_number = request.GET.get('page', 1)
+
     try:
-        dispositivos = paginator.page(request.GET.get('page'))
+        dispositivos = paginator.page(page_number)
     except (PageNotAnInteger, EmptyPage):
         dispositivos = paginator.page(1)
 
     for d in dispositivos:
         vr = d.validade_registro or ''
         d.validade_display = vr or 'VIGENTE'
+
+    query_string = urlencode({
+        k: v for k, v in request.GET.items() if k != 'page' and v
+    })
 
     return render(request,
                   'dispositivos_medicos_anvisa/lista_dispositivos_medicos_anvisa.html',
@@ -82,8 +91,9 @@ def lista_dispositivos(request):
                       'top_paises': top_paises,
                       'top_fabricantes': top_fabricantes,
                       'ultima_atualizacao': ultima_atualizacao,
-                      'filtros': [],
+                      'query_string': query_string,
                   })
+
 
 def exportar_dispositivos_pdf(request):
     qs = DispositivoMedicoAnvisa.objects.all()
