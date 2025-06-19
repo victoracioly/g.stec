@@ -52,11 +52,13 @@ class Command(BaseCommand):
             return str(valor).strip() if pd.notna(valor) else ''
 
         def limpar_data(valor):
-            if not valor or "00/00" in valor or valor.lower() in ("n/a", "nan", "vigente"):
-                return date(3000, 1, 1)
             try:
+                if not valor or "00/00" in valor or valor.lower() in ("n/a", "nan", "vigente"):
+                    return date(3000, 1, 1)
                 dt = pd.to_datetime(valor, format="%m/%d/%Y %H:%M:%S", errors="coerce")
-                return dt.date() if pd.notna(dt) else date(3000, 1, 1)
+                if pd.isna(dt):
+                    return date(3000, 1, 1)
+                return dt.date()
             except Exception:
                 return date(3000, 1, 1)
 
@@ -104,7 +106,4 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f'Total de registros salvos no banco: {total_banco}'))
         self.stdout.write(self.style.SUCCESS(f'✅ Registros salvos com sucesso: {registros_sucesso}'))
         self.stdout.write(self.style.ERROR(f'❌ Registros com erro: {registros_erro} (ver log_erros_importacao.txt)'))
-
-    def parse_date(self, value):
-        # Esse método ainda existe, mas foi substituído por limpar_data
-        return date(3000, 1, 1)
+        self.stdout.write(self.style.SUCCESS(f'Total processado no loop: {registros_sucesso + registros_erro}'))
