@@ -6,7 +6,7 @@ from io import BytesIO
 from datetime import date, datetime
 from django.core.management.base import BaseCommand
 from dispositivos_medicos_anvisa.models import DispositivoMedicoAnvisa
-from django.db import transaction
+from django.db import transaction  # Importado para transações atômicas
 
 
 class Command(BaseCommand):
@@ -16,6 +16,7 @@ class Command(BaseCommand):
         url_csv = 'https://gstec-anvisa.s3.sa-east-1.amazonaws.com/dispositivos.csv'
         self.stdout.write(f'📅 Baixando CSV diretamente do S3: {url_csv}')
 
+        # Caminho do CSV salvo localmente
         base_dir = os.path.dirname(os.path.abspath(__file__))
         data_dir = os.path.join(base_dir, '..', '..', 'data')
         os.makedirs(data_dir, exist_ok=True)
@@ -94,12 +95,17 @@ class Command(BaseCommand):
             converted_dates.loc[mask_nat] = pd.to_datetime(serie_processada.loc[mask_nat], errors="coerce",
                                                            dayfirst=True)
 
-            # 3. Garante que todos os NaT são preenchidos com a data padrão e convertidos para datetime.date
-            # Isso é CRÍTICO para evitar o erro NaTType
-            final_dates = converted_dates.fillna(date(3000, 1, 1))
+            # 3. Garante que todos os NaT são preenchidos com um Timestamp padrão e convertidos para datetime.date
+            # Converte tudo para datetime64[ns] (Timestamps). NaT permanece NaT.
+            series_of_timestamps = pd.to_datetime(converted_dates, errors='coerce')
 
-            # Converte para datetime.date, pois o DateField do Django espera isso.
-            return final_dates.dt.date
+            # Preenche os NaT com um Timestamp para manter o tipo da série
+            # Use uma data padrão DENTRO DO LIMITE DO PANDAS (ex: 2100-01-01) para evitar OverflowError
+            default_date_timestamp = pd.Timestamp(date(2100, 1, 1))  # CORREÇÃO AQUI
+            final_dates_filled = series_of_timestamps.fillna(default_date_timestamp)
+
+            # Finalmente, converte a Series de Timestamps para Series de datetime.date
+            return final_dates_filled.dt.date
 
         self.stdout.write('✨ Aplicando funções de limpeza e padronização ao DataFrame...')
 
@@ -125,9 +131,10 @@ class Command(BaseCommand):
 
         registros_sucesso_preparacao = 0  # Conta quantos objetos foram preparados com sucesso do CSV
         registros_erro_preparacao = 0  # Conta erros na fase de preparação do objeto
-        objetos_para_inserir = []
+        objetos_para_inserir = []  # Lista para armazenar objetos DispositivoMedicoAnvisa do CSV
 
-        log_erros_path = 'log_erros_importacao.txt'
+        log_erros_path = 'log_erros_importacao.txt'  # Definido fora do 'with open' para uso no final
+        # Abre o arquivo de log para escrita, garantindo que ele esteja aberto durante as operações de DB
         with open(log_erros_path, 'w', encoding='utf-8') as log_file:
             log_file.write("LOG DE ERROS DE IMPORTAÇÃO\n\n")
 
@@ -142,7 +149,7 @@ class Command(BaseCommand):
                     registros_erro_preparacao += 1
                     msg = f"⚠️ Linha {idx} ignorada - Número de registro vazio após limpeza. Conteúdo: {row.to_dict()}\n"
                     self.stderr.write(msg)
-                    log_file.write(msg)
+                    log_file.write(msg)  # Escrever no log_file
                     continue
 
                 try:
@@ -158,74 +165,99 @@ class Command(BaseCommand):
                         nome_fabricante=row['NOME_FABRICANTE'],
                         nome_pais_fabricante=row['NOME_PAIS_FABRIC'],
                         data_publicacao_registro=row['DT_PUB_REGISTRO_CADASTRO'],
-                        validade_registro=row['VALIDADE_REGISTRO_CADASTRO'],  # Já limpo pelo pandas
-                        data_atualizacao=row['DT_ATUALIZACAO_DADO'],  # Já limpo pelo pandas
+                        validade_registro=row['VALIDADE_REGISTRO_CADASTRO'],
+                        data_atualizacao=row['DT_ATUALIZACAO_DADO'],
                     )
                     objetos_para_inserir.append(obj)
-                    registros_sucesso_preparacao += 1  # Contabiliza aqui para objetos válidos preparados
+                    registros_sucesso_preparacao += 1
                 except Exception as e:
                     registros_erro_preparacao += 1
                     msg = f"❌ Erro ao preparar objeto da linha {idx} - Registro '{numero}': {e}\n"
                     self.stderr.write(msg)
-                    log_file.write(msg)
+                    log_file.write(msg)  # Escrever no log_file
 
-        self.stdout.write('📦 Salvando objetos no banco de dados em massa...')
+            self.stdout.write('📦 Salvando objetos no banco de dados em massa...')
 
-        registros_criados_db = 0
-        registros_atualizados_db = 0
-        registros_erro_db = 0  # Contabiliza erros durante a operação de banco de dados em massa
+            registros_criados_db = 0
+            registros_atualizados_db = 0
+            registros_erro_db = 0
 
-        # --- Operações de Banco de Dados em Massa (Transação Atômica) ---
-        with transaction.atomic():
-            # Consulta todos os números de registro existentes no banco de dados
-            existing_numbers = set(DispositivoMedicoAnvisa.objects.values_list('numero_registro_cadastro', flat=True))
+            with transaction.atomic():
+                # OTIMIZAÇÃO CRÍTICA AQUI:
+                # 1. Obtenha todos os registros existentes relevantes do banco de dados
+                #    e crie um mapeamento de `numero_registro_cadastro` para a instância do objeto (incluindo o ID)
+                # Faz uma única consulta para todos os registros que podem existir
+                # A lista 'objetos_para_inserir' contém todos os objetos que *deveriam* estar no DB (novos ou atualizados)
+                # Extraia os 'numero_registro_cadastro' para buscar no DB
+                numeros_registros_csv = [obj.numero_registro_cadastro for obj in objetos_para_inserir]
 
-            to_create = []
-            to_update = []
+                # Busca as instâncias existentes no banco de dados.
+                # Usa 'DispositivoMedicoAnvisa.objects.filter(numero_registro_cadastro__in=numeros_registros_csv)'
+                # e cria um dicionário para fácil acesso.
+                existing_devices_query = DispositivoMedicoAnvisa.objects.filter(
+                    numero_registro_cadastro__in=numeros_registros_csv)
+                existing_devices_map = {device.numero_registro_cadastro: device for device in existing_devices_query}
 
-            # Separa os objetos preparados entre os que precisam ser criados e os que precisam ser atualizados
-            for obj in objetos_para_inserir:
-                if obj.numero_registro_cadastro in existing_numbers:
-                    to_update.append(obj)
-                else:
-                    to_create.append(obj)
+                to_create = []
+                to_update = []
 
-            if to_create:
-                try:
-                    # Cria novos registros em massa. ignore_conflicts=False para lançar erro se houver duplicata inesperada.
-                    created_objects = DispositivoMedicoAnvisa.objects.bulk_create(to_create, ignore_conflicts=False)
-                    registros_criados_db = len(created_objects)
-                    self.stdout.write(f'✅ {registros_criados_db} novos registros criados.')
-                except Exception as e:
-                    registros_erro_db += len(to_create)  # Todos esses falharam
-                    msg = f"❌ Erro em massa ao criar registros: {e}\n"
-                    self.stderr.write(msg)
-                    log_file.write(msg)
+                for obj_from_csv in objetos_para_inserir:
+                    if obj_from_csv.numero_registro_cadastro in existing_devices_map:
+                        # Se o registro já existe, recupere a instância existente
+                        # e atualize seus campos com os novos dados do CSV
+                        existing_obj = existing_devices_map[obj_from_csv.numero_registro_cadastro]
 
-            if to_update:
-                # Define os campos que devem ser atualizados em massa
-                update_fields = [
-                    'numero_processo', 'nome_tecnico', 'classe_risco', 'nome_comercial',
-                    'cnpj_detentor_registro', 'detentor_registro', 'nome_fabricante',
-                    'nome_pais_fabricante', 'data_publicacao_registro', 'validade_registro',
-                    'data_atualizacao'
-                ]
-                try:
-                    updated_count = DispositivoMedicoAnvisa.objects.bulk_update(to_update, update_fields)
-                    registros_atualizados_db = updated_count
-                    self.stdout.write(f'✅ {registros_atualizados_db} registros atualizados.')
-                except Exception as e:
-                    registros_erro_db += len(to_update)  # Todos esses falharam
-                    msg = f"❌ Erro em massa ao atualizar registros: {e}\n"
-                    self.stderr.write(msg)
-                    log_file.write(msg)
+                        # ATUALIZE APENAS OS CAMPOS QUE PODEM MUDAR
+                        existing_obj.numero_processo = obj_from_csv.numero_processo
+                        existing_obj.nome_tecnico = obj_from_csv.nome_tecnico
+                        existing_obj.classe_risco = obj_from_csv.classe_risco
+                        existing_obj.nome_comercial = obj_from_csv.nome_comercial
+                        existing_obj.cnpj_detentor_registro = obj_from_csv.cnpj_detentor_registro
+                        existing_obj.detentor_registro = obj_from_csv.detentor_registro
+                        existing_obj.nome_fabricante = obj_from_csv.nome_fabricante
+                        existing_obj.nome_pais_fabricante = obj_from_csv.nome_pais_fabricante
+                        existing_obj.data_publicacao_registro = obj_from_csv.data_publicacao_registro
+                        existing_obj.validade_registro = obj_from_csv.validade_registro
+                        existing_obj.data_atualizacao = obj_from_csv.data_atualizacao
 
-        self.stdout.write(f'✅ Operações de banco de dados concluídas.')
+                        to_update.append(existing_obj)
+                    else:
+                        to_create.append(obj_from_csv)  # Este objeto não existe, então será criado
 
+                if to_create:
+                    try:
+                        created_objects = DispositivoMedicoAnvisa.objects.bulk_create(to_create, ignore_conflicts=False)
+                        registros_criados_db = len(created_objects)
+                        self.stdout.write(f'✅ {registros_criados_db} novos registros criados.')
+                    except Exception as e:
+                        registros_erro_db += len(to_create)
+                        msg = f"❌ Erro em massa ao criar registros: {e}\n"
+                        self.stderr.write(msg)
+                        log_file.write(msg)  # Escrever no log_file
+
+                if to_update:
+                    update_fields = [
+                        'numero_processo', 'nome_tecnico', 'classe_risco', 'nome_comercial',
+                        'cnpj_detentor_registro', 'detentor_registro', 'nome_fabricante',
+                        'nome_pais_fabricante', 'data_publicacao_registro', 'validade_registro',
+                        'data_atualizacao'
+                    ]
+                    try:
+                        updated_count = DispositivoMedicoAnvisa.objects.bulk_update(to_update, update_fields)
+                        registros_atualizados_db = updated_count
+                        self.stdout.write(f'✅ {registros_atualizados_db} registros atualizados.')
+                    except Exception as e:
+                        registros_erro_db += len(to_update)
+                        msg = f"❌ Erro em massa ao atualizar registros: {e}\n"
+                        self.stderr.write(msg)
+                        log_file.write(msg)  # Escrever no log_file
+
+            self.stdout.write(f'✅ Operações de banco de dados concluídas.')
+
+        # As contagens finais e mensagens de sucesso/erro são exibidas após o 'with open'
         total_linhas_csv = len(df)
-        total_banco = DispositivoMedicoAnvisa.objects.count()
+        total_banco = DispositivoMedicoAnvisa.objects.count()  # Contagem final do banco
 
-        # Agora, a contagem final é mais clara
         total_processado_com_sucesso_db = registros_criados_db + registros_atualizados_db
         total_erros_geral = registros_erro_preparacao + registros_erro_db
 
