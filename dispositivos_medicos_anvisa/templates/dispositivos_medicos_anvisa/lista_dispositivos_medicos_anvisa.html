@@ -25,20 +25,20 @@
                 <span class="badge bg-secondary">{{ fab.nome_fabricante }} ({{ fab.total }})</span>
             {% endfor %}
         {% endif %}
-        {% if ultima_atualizacao %}
-            <br>Última atualização da base: <strong>{{ ultima_atualizacao }}</strong>
-        {% endif %}
+{#        {% if ultima_atualizacao %}#}
+{#            <br>Última atualização da base: <strong>{{ ultima_atualizacao }}</strong>#}
+{#        {% endif %}#}
     </div>
     {% endif %}
 
     <form method="get" class="row g-2 mb-4 align-items-end">
-        <div class="col-md-3">
-            <label for="nome_comercial" class="form-label">Nome Comercial</label>
-            <input type="text" name="nome_comercial" class="form-control" value="{{ request.GET.nome_comercial }}">
-        </div>
         <div class="col-md-2">
             <label for="numero_registro" class="form-label">Nº Registro</label>
             <input type="text" name="numero_registro" class="form-control" value="{{ request.GET.numero_registro }}">
+        </div>
+        <div class="col-md-3">
+            <label for="nome_comercial" class="form-label">Nome Comercial</label>
+            <input type="text" name="nome_comercial" class="form-control" value="{{ request.GET.nome_comercial }}">
         </div>
         <div class="col-md-2">
             <label for="fabricante" class="form-label">Fabricante</label>

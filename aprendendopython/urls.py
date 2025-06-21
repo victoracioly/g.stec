@@ -6,8 +6,8 @@ from core.views import home
 
 urlpatterns = [
     # Página inicial do sistema - redireciona para o dashboard principal
-    path('', home, name='home'),
-
+    #path('', home, name='home'),
+    path('',include('dispositivos_medicos_anvisa.urls')),
     # Acesso ao painel administrativo padrão do Django
     path('admin/', admin.site.urls),
 
