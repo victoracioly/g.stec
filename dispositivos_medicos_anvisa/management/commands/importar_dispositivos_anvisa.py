@@ -109,8 +109,7 @@ class Command(BaseCommand):
 
         self.stdout.write('✨ Aplicando funções de limpeza e padronização ao DataFrame...')
 
-        # NOVO: Remove duplicatas do DataFrame com base no 'NUMERO_REGISTRO_CADASTRO'
-        # Isso garante que cada número de registro único no CSV resultará em apenas um objeto a ser processado.
+        # Remove duplicatas do DataFrame com base no 'NUMERO_REGISTRO_CADASTRO'
         total_linhas_antes_duplicatas = len(df)
         df.drop_duplicates(subset=['NUMERO_REGISTRO_CADASTRO'], keep='first', inplace=True)
         total_linhas_depois_duplicatas = len(df)
@@ -142,27 +141,27 @@ class Command(BaseCommand):
         registros_erro_preparacao = 0  # Conta erros na fase de preparação do objeto
         objetos_para_inserir = []  # Lista para armazenar objetos DispositivoMedicoAnvisa do CSV
 
-        log_erros_path = 'log_erros_importacao.txt'  # Definido fora do 'with open' para uso no final
+        log_erros_path = 'log_erros_importacao.txt'
         # Abre o arquivo de log para escrita, garantindo que ele esteja aberto durante as operações de DB
         with open(log_erros_path, 'w', encoding='utf-8') as log_file:
             log_file.write("LOG DE ERROS DE IMPORTAÇÃO\n\n")
 
             self.stdout.write('🔄 Preparando objetos do Django a partir do DataFrame...')
-            # --- OTIMIZAÇÃO AQUI: itertuples() para melhor performance ---
-            for idx, row in df.itertuples(name='DispositivoRow'):  # Adicionado name='DispositivoRow' para clareza
-                # O 'idx' aqui será o índice original do DataFrame, e 'row' será uma namedtuple
+            # --- itertuples() para melhor performance ---
+            for row in df.itertuples(name='DispositivoRow'):
+                # O 'row.Index' aqui será o índice original do DataFrame, e 'row.COLUNA' será o valor da coluna.
 
                 # Reduz a frequência do log de progresso para grandes datasets
-                if idx % 5000 == 0:  # Manter a checagem no índice
-                    self.stdout.write(f"🔄 Processando linha {idx}/{len(df)}...")
+                if row.Index % 500 == 0:
+                    self.stdout.write(f"🔄 Processando linha {row.Index}/{len(df)}...")
 
-                # --- Acesso aos dados da linha de row['COLUNA'] para row.COLUNA ---
+                    # --- Acesso aos dados da linha de row['COLUNA'] para row.COLUNA ---
                 numero = row.NUMERO_REGISTRO_CADASTRO
                 # Usar str(numero).strip() caso o campo venha como NaN/None
                 if not numero or str(numero).strip() == '':
                     registros_erro_preparacao += 1
                     # Não podemos usar row.to_dict() com namedtuple, então formatamos manualmente
-                    msg = f"⚠️ Linha {idx} ignorada - Número de registro vazio após limpeza. Conteúdo: {row}\n"
+                    msg = f"⚠️ Linha {row.Index} ignorada - Número de registro vazio após limpeza. Conteúdo: {row}\n"
                     self.stderr.write(msg)
                     log_file.write(msg)
                     continue
@@ -186,111 +185,53 @@ class Command(BaseCommand):
                     registros_sucesso_preparacao += 1
                 except Exception as e:
                     registros_erro_preparacao += 1
-                    msg = f"❌ Erro ao preparar objeto da linha {idx} - Registro '{numero}': {e}\n"
+                    msg = f"❌ Erro ao preparar objeto da linha {row.Index} - Registro '{numero}': {e}\n"
                     self.stderr.write(msg)
                     log_file.write(msg)
 
-            self.stdout.write('📦 Salvando objetos no banco de dados em massa...')
+            self.stdout.write('📦 Zerando banco e salvando novos objetos em massa...')
 
             registros_criados_db = 0
-            registros_atualizados_db = 0
             registros_erro_db = 0
 
             with transaction.atomic():
-                # OTIMIZAÇÃO CRÍTICA AQUI:
-                # 1. Obtenha todos os registros existentes relevantes do banco de dados
-                #    e crie um mapeamento de `numero_registro_cadastro` para a instância do objeto (incluindo o ID)
-                # Faz uma única consulta para todos os registros que podem existir
-                # A lista 'objetos_para_inserir' contém todos os objetos que *deveriam* estar no DB (novos ou atualizados)
-                # Extraia os 'numero_registro_cadastro' para buscar no DB
-                numeros_registros_csv = [obj.numero_registro_cadastro for obj in objetos_para_inserir]
+                # PASSO CRÍTICO: ZERAR A TABELA ANTES DE INSERIR NOVOS DADOS
+                self.stdout.write(self.style.WARNING("🗑️ Apagando todos os registros existentes da tabela..."))
+                DispositivoMedicoAnvisa.objects.all().delete()
+                self.stdout.write(self.style.SUCCESS("✅ Registros existentes apagados."))
 
-                # Busca as instâncias existentes no banco de dados.
-                # Usa 'DispositivoMedicoAnvisa.objects.filter(numero_registro_cadastro__in=numeros_registros_csv)'
-                # e cria um dicionário para fácil acesso.
-                existing_devices_query = DispositivoMedicoAnvisa.objects.filter(
-                    numero_registro_cadastro__in=numeros_registros_csv)
-                existing_devices_map = {device.numero_registro_cadastro: device for device in existing_devices_query}
-
-                to_create = []
-                to_update = []
-
-                for obj_from_csv in objetos_para_inserir:
-                    if obj_from_csv.numero_registro_cadastro in existing_devices_map:
-                        # Se o registro já existe, recupere a instância existente
-                        # e atualize seus campos com os novos dados do CSV
-                        existing_obj = existing_devices_map[obj_from_csv.numero_registro_cadastro]
-
-                        # ATUALIZE APENAS OS CAMPOS QUE PODEM MUDAR
-                        existing_obj.numero_processo = obj_from_csv.numero_processo
-                        existing_obj.nome_tecnico = obj_from_csv.nome_tecnico
-                        existing_obj.classe_risco = obj_from_csv.classe_risco
-                        existing_obj.nome_comercial = obj_from_csv.nome_comercial
-                        existing_obj.cnpj_detentor_registro = obj_from_csv.cnpj_detentor_registro
-                        existing_obj.detentor_registro = obj_from_csv.detentor_registro
-                        existing_obj.nome_fabricante = obj_from_csv.nome_fabricante
-                        existing_obj.nome_pais_fabricante = obj_from_csv.nome_pais_fabricante
-                        existing_obj.data_publicacao_registro = obj_from_csv.data_publicacao_registro
-                        existing_obj.validade_registro = obj_from_csv.validade_registro
-                        existing_obj.data_atualizacao = obj_from_csv.data_atualizacao
-
-                        to_update.append(existing_obj)
-                    else:
-                        to_create.append(obj_from_csv)  # Este objeto não existe, então será criado
-
-                # Usando batch_size para bulk_create
-                if to_create:
+                # APENAS bulk_create AGORA (todos são "novos" após a exclusão)
+                if objetos_para_inserir:
                     self.stdout.write(
-                        f'🚀 Iniciando criação em massa de {len(to_create)} registros em lotes (batch_size=500)...')
+                        f'🚀 Iniciando criação em massa de {len(objetos_para_inserir)} registros em lotes (batch_size=500)...')
                     try:
-                        # Define um tamanho de lote de 500, conforme testado com sucesso
-                        created_objects = DispositivoMedicoAnvisa.objects.bulk_create(to_create, batch_size=500,
+                        created_objects = DispositivoMedicoAnvisa.objects.bulk_create(objetos_para_inserir,
+                                                                                      batch_size=500,
                                                                                       ignore_conflicts=False)
                         registros_criados_db = len(created_objects)
-                        self.stdout.write(f'✅ {registros_criados_db} novos registros criados.')
+                        self.stdout.write(self.style.SUCCESS(f'✅ {registros_criados_db} novos registros criados.'))
                     except Exception as e:
-                        registros_erro_db += len(to_create)
+                        registros_erro_db += len(objetos_para_inserir)
                         msg = f"❌ Erro em massa ao criar registros: {e}\n"
                         self.stderr.write(msg)
                         log_file.write(msg)
+                else:
+                    self.stdout.write(self.style.WARNING("⚠️ Nenhuns objetos para criar após a preparação do CSV."))
 
-                # Usando batch_size para bulk_update
-                if to_update:
-                    self.stdout.write(
-                        f'🚀 Iniciando atualização em massa de {len(to_update)} registros em lotes (batch_size=500)...')
-                    update_fields = [
-                        'numero_processo', 'nome_tecnico', 'classe_risco', 'nome_comercial',
-                        'cnpj_detentor_registro', 'detentor_registro', 'nome_fabricante',
-                        'nome_pais_fabricante', 'data_publicacao_registro', 'validade_registro',
-                        'data_atualizacao'
-                    ]
-                    try:
-                        # Define um tamanho de lote de 500, conforme testado com sucesso
-                        updated_count = DispositivoMedicoAnvisa.objects.bulk_update(to_update, update_fields,
-                                                                                    batch_size=500)
-                        registros_atualizados_db = updated_count
-                        self.stdout.write(f'✅ {registros_atualizados_db} registros atualizados.')
-                    except Exception as e:
-                        registros_erro_db += len(to_update)
-                        msg = f"❌ Erro em massa ao atualizar registros: {e}\n"
-                        self.stderr.write(msg)
-                        log_file.write(msg)
-
-            self.stdout.write(f'✅ Operações de banco de dados concluídas.')
+            self.stdout.write(self.style.SUCCESS('✅ Operações de banco de dados concluídas.'))
 
         # As contagens finais e mensagens de sucesso/erro são exibidas após o 'with open'
-        # total_linhas_csv aqui refletirá o número de linhas *APÓS* a remoção de duplicatas do CSV
         total_linhas_csv = total_linhas_depois_duplicatas
         total_banco = DispositivoMedicoAnvisa.objects.count()  # Contagem final do banco
 
-        total_processado_com_sucesso_db = registros_criados_db + registros_atualizados_db
+        total_processado_com_sucesso_db = registros_criados_db
         total_erros_geral = registros_erro_preparacao + registros_erro_db
 
         self.stdout.write(self.style.SUCCESS('✅ Importação finalizada.'))
         self.stdout.write(self.style.WARNING(f'Total de linhas únicas no CSV processadas: {total_linhas_csv}'))
-        self.stdout.write(self.style.WARNING(f'Total de registros no banco de dados: {total_banco}'))
+        self.stdout.write(self.style.WARNING(f'Total de registros no banco de dados (após operação): {total_banco}'))
         self.stdout.write(
-            self.style.SUCCESS(f'✅ Registros criados/atualizados no DB: {total_processado_com_sucesso_db}'))
+            self.style.SUCCESS(f'✅ Registros criados no DB: {total_processado_com_sucesso_db}'))
         self.stdout.write(self.style.ERROR(f'❌ Registros com erro (total): {total_erros_geral} (ver {log_erros_path})'))
         self.stdout.write(self.style.SUCCESS(
             f'Total de linhas do CSV tentadas (pré-processamento): {registros_sucesso_preparacao + registros_erro_preparacao}'))
